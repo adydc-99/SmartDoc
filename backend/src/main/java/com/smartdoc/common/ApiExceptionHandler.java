@@ -3,6 +3,9 @@ package com.smartdoc.common;
 import com.smartdoc.document.*;
 import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.Map;
@@ -11,7 +14,8 @@ import java.util.Map;
 public class ApiExceptionHandler {
     @ExceptionHandler(DocumentNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND) public Map<String,String> notFound(DocumentNotFoundException e){return Map.of("message",e.getMessage());}
-    @ExceptionHandler({InvalidDocumentException.class,MethodArgumentNotValidException.class})
+    @ExceptionHandler({InvalidDocumentException.class,MethodArgumentNotValidException.class,HttpMessageNotReadableException.class,
+            MissingServletRequestParameterException.class,MethodArgumentTypeMismatchException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST) public Map<String,String> badRequest(Exception e){return Map.of("message",e instanceof InvalidDocumentException?e.getMessage():"请求参数不正确");}
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String,String>> responseStatus(ResponseStatusException e){

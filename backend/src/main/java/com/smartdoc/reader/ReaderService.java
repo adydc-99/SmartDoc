@@ -65,7 +65,7 @@ public class ReaderService {
         String needle = requireQuery(query);
         int limit = requestedLimit == null ? 50 : requestedLimit;
         if (limit < 1 || limit > 50) throw new InvalidDocumentException("搜索数量必须在 1 到 50 之间");
-        List<DocumentChunkRecord> records = chunks.selectOwnedOrdered(userId, documentId);
+        List<DocumentChunkRecord> records = chunks.selectOwnedMatching(userId, documentId, likePattern(needle), limit);
         List<SearchHit> result = new ArrayList<>();
         for (DocumentChunkRecord record : records) {
             int match = indexOfIgnoreCase(record.getContent(), needle);
@@ -87,6 +87,9 @@ public class ReaderService {
         if (text == null) return -1;
         for (int index=0; index+needle.length()<=text.length(); index++) if (text.regionMatches(true,index,needle,0,needle.length())) return index;
         return -1;
+    }
+    private String likePattern(String value) {
+        return "%" + value.toLowerCase(Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     }
     private SearchHit snippet(DocumentChunkRecord chunk, int match, int matchLength) {
         String text = chunk.getContent();

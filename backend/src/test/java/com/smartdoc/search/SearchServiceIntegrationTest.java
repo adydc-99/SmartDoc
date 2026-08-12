@@ -109,6 +109,45 @@ class SearchServiceIntegrationTest {
         assertEquals(ownedNote, hits.get(0).getNoteId());
     }
 
+    @Test
+    void wildcardCharactersAreLiteralAndEachCategoryIsBoundedBeforeMerge() {
+        LocalDateTime now = LocalDateTime.now();
+        for (int index = 0; index < 45; index++) document(9L, "literal %_\\ document " + index, null, now.plusSeconds(index));
+        document(9L, "literal XX document", null, now.plusDays(1));
+
+        List<UnifiedSearchHit> hits = service.search(9L, "%_\\", "document", 30);
+
+        assertEquals(30, hits.size());
+        assertTrue(hits.stream().allMatch(hit -> hit.getTitle().contains("%_\\")));
+    }
+
+    @Test
+    void oldTitleMatchIsNotDisplacedByMoreThanLimitRecentBodyMatches() {
+        LocalDateTime now = LocalDateTime.now();
+        DocumentRecord title = document(15L, "Needle title", null, now.minusYears(1));
+        for (int index = 0; index < 35; index++) document(15L, "body " + index, "needle in body", now.plusSeconds(index));
+
+        List<UnifiedSearchHit> hits = service.search(15L, "needle", "document", 30);
+
+        assertEquals(30, hits.size());
+        assertEquals(title.getId(), hits.get(0).getDocumentId());
+    }
+
+    @Test
+    void tagCandidateBoundAppliesAfterAssociationDeduplication() {
+        LocalDateTime now=LocalDateTime.now();
+        DocumentRecord repeated=document(16L,"Repeated",null,now);
+        DocumentRecord distinct=document(16L,"Distinct",null,now.minusDays(1));
+        TagRecord repeatedTag=tag("Needle repeated");TagRecord distinctTag=tag("Needle distinct");
+        for(int index=0;index<12;index++){long noteId=note(repeated.getId(),1,null,"plain",now.plusSeconds(index));jdbc.update("INSERT INTO note_tag(note_id,tag_id) VALUES (?,?)",noteId,repeatedTag.getId());}
+        link(distinct.getId(),distinctTag.getId());
+
+        List<UnifiedSearchHit> hits=service.search(16L,"needle","tag",2);
+
+        assertEquals(2,hits.size());
+        assertEquals(java.util.Set.of(repeated.getId(),distinct.getId()),hits.stream().map(UnifiedSearchHit::getDocumentId).collect(java.util.stream.Collectors.toSet()));
+    }
+
     private DocumentRecord document(long owner,String name,String content,LocalDateTime updated){DocumentRecord d=new DocumentRecord();d.setUserId(owner);d.setName(name);d.setContentText(content);d.setDocumentType("PDF");d.setMimeType("application/pdf");d.setSizeBytes(1L);d.setStorageKey("test/"+name);d.setStatus("READY");d.setFavorite(false);d.setCreatedAt(updated.minusDays(1));d.setUpdatedAt(updated);documents.insert(d);return d;}
     private void chunk(long documentId,int index,int page,String content){DocumentChunkRecord c=new DocumentChunkRecord();c.setDocumentId(documentId);c.setChunkIndex(index);c.setPageNumber(page);c.setContent(content);chunks.insert(c);}
     private TagRecord tag(String name){TagRecord t=new TagRecord();t.setName(name);t.setColor("#112233");t.setCreatedAt(LocalDateTime.now());tags.insert(t);return t;}

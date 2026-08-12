@@ -5,6 +5,7 @@ import com.smartdoc.document.DocumentRecord;
 import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
+import javax.validation.Valid;
 
 @RestController
 public class ReaderController {
@@ -12,7 +13,7 @@ public class ReaderController {
     public ReaderController(ReaderService service){this.service=service;}
 
     @PutMapping("/api/documents/{id}/progress")
-    public ProgressView save(@PathVariable long id,@RequestBody ProgressInput body,HttpServletRequest request){return service.save(CurrentUser.from(request).getUserId(),id,body);}
+    public ProgressView save(@PathVariable long id,@Valid @RequestBody ProgressInput body,HttpServletRequest request){return service.save(CurrentUser.from(request).getUserId(),id,body);}
     @GetMapping("/api/documents/{id}/progress")
     public ProgressView get(@PathVariable long id,HttpServletRequest request){return service.get(CurrentUser.from(request).getUserId(),id);}
     @GetMapping("/api/documents/{id}/search")
