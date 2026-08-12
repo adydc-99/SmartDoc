@@ -240,11 +240,15 @@ class DocumentServiceTest {
         final DocumentChunkMapper chunks = mock(DocumentChunkMapper.class);
         final FileStorage storage = mock(FileStorage.class);
         final QuestionMapper questions = mock(QuestionMapper.class);
+        final com.smartdoc.note.mapper.NoteMapper notes=mock(com.smartdoc.note.mapper.NoteMapper.class);
+        final com.smartdoc.reader.mapper.ReadingProgressMapper progress=mock(com.smartdoc.reader.mapper.ReadingProgressMapper.class);
+        final com.smartdoc.library.mapper.DocumentTagMapper documentTags=mock(com.smartdoc.library.mapper.DocumentTagMapper.class);
+        final com.smartdoc.ai.mapper.AiResultMapper aiResults=mock(com.smartdoc.ai.mapper.AiResultMapper.class);
         final DocumentProcessor processor = mock(DocumentProcessor.class);
         DocumentRecord lastUpdated;
         final DocumentService service;
         Fixture(){when(documents.claimFailed(anyLong(),anyLong(),anyLong(),any())).thenReturn(1);service=new DocumentService(documents,chunks,storage,questions,
-                new DocumentUploadValidator(20L*1024*1024),new DocumentAccessPolicy(),processor,new DocumentLockManager());}
+                new DocumentUploadValidator(20L*1024*1024),new DocumentAccessPolicy(),processor,new DocumentLockManager(),notes,progress,documentTags,aiResults);}
     }
 
     private static final class CloseTrackingMultipartFile extends MockMultipartFile{

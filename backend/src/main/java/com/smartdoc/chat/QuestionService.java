@@ -22,7 +22,7 @@ public class QuestionService {
     @Transactional public AnswerResponse ask(long userId,long documentId,String question) throws Exception {
         try (DocumentLockManager.Handle ignored = locks.acquire(documentId)) {
         if(question==null||question.trim().isEmpty()||question.length()>500) throw new InvalidDocumentException("问题长度应为 1-500 字");
-        DocumentRecord doc=documents.get(userId,documentId); if(!"READY".equals(doc.getStatus())) throw new InvalidDocumentException("文档尚未解析完成");
+        DocumentRecord doc=documents.getForUpdate(userId,documentId); if(!"READY".equals(doc.getStatus())) throw new InvalidDocumentException("文档尚未解析完成");
         List<TextChunk> all=chunkMapper.selectList(new LambdaQueryWrapper<DocumentChunkRecord>().eq(DocumentChunkRecord::getDocumentId,documentId)
                 .orderByAsc(DocumentChunkRecord::getChunkIndex)).stream().map(r->new TextChunk(r.getChunkIndex(),r.getPageNumber(),r.getContent())).collect(Collectors.toList());
         List<TextChunk> refs=retriever.retrieve(question,all,3); String answer=ai.answer(question,refs);

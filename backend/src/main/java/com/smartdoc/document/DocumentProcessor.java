@@ -6,6 +6,7 @@ import com.smartdoc.document.mapper.*;
 import com.smartdoc.storage.FileStorage;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,8 +19,9 @@ public class DocumentProcessor {
                              PdfTextExtractor pdfExtractor, TextDocumentExtractor textExtractor, TextChunker chunker, AiClient ai) {
         this.documents=documents; this.chunks=chunks; this.storage=storage; this.pdfExtractor=pdfExtractor; this.textExtractor=textExtractor; this.chunker=chunker;
     }
-    @Async("documentExecutor") public void process(long documentId) {
-        DocumentRecord doc = documents.selectById(documentId);
+    @Async("documentExecutor") @Transactional public void process(long documentId) {
+        DocumentRecord doc = documents.selectForUpdate(documentId);
+        if(doc==null || "DELETING".equals(doc.getStatus()))return;
         try (InputStream input = storage.open(doc.getStorageKey())) {
             DocumentType type=DocumentType.valueOf(doc.getDocumentType());
             List<PageText> pages;

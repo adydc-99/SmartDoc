@@ -20,6 +20,7 @@ import java.time.Clock;
 
 @Configuration
 public class AppConfig {
+    @Bean Clock clock() { return Clock.systemUTC(); }
     @Bean AuthTokenService authTokenService(@Value("${smartdoc.auth.secret:}") String secret,
             @Value("${smartdoc.auth.ttl-seconds:86400}") long ttl) {
         if (secret == null || secret.length() < 32) secret = UUID.randomUUID().toString() + UUID.randomUUID();

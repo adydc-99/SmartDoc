@@ -114,3 +114,5 @@ CREATE TABLE IF NOT EXISTS question_history (
   created_at TIMESTAMP NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_question_document_user ON question_history(document_id, user_id, created_at);
+
+-- DELETING is a document status value used as a transactional deletion claim; no schema change is required.

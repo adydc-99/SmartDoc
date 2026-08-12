@@ -21,7 +21,7 @@ class DocumentProcessorTest {
         FileStorage storage = mock(FileStorage.class);
         AiClient ai = mock(AiClient.class);
         DocumentRecord document = document("CODE", "examples/demo.java");
-        when(documents.selectById(42L)).thenReturn(document);
+        when(documents.selectForUpdate(42L)).thenReturn(document);
         when(storage.open("examples/demo.java")).thenReturn(new ByteArrayInputStream("class 示例 {}".getBytes(StandardCharsets.UTF_8)));
         DocumentProcessor processor = new DocumentProcessor(documents, chunks, storage,
                 new PdfTextExtractor(), new TextDocumentExtractor(), new TextChunker(1000, 120), ai);
@@ -41,7 +41,7 @@ class DocumentProcessorTest {
         DocumentChunkMapper chunks = mock(DocumentChunkMapper.class);
         FileStorage storage = mock(FileStorage.class);
         DocumentRecord document = document("TEXT", "broken.txt");
-        when(documents.selectById(42L)).thenReturn(document);
+        when(documents.selectForUpdate(42L)).thenReturn(document);
         when(storage.open("broken.txt")).thenReturn(new ByteArrayInputStream(new byte[]{(byte) 0xC3, (byte) 0x28}));
         DocumentProcessor processor = new DocumentProcessor(documents, chunks, storage,
                 new PdfTextExtractor(), new TextDocumentExtractor(), new TextChunker(1000, 120), mock(AiClient.class));
