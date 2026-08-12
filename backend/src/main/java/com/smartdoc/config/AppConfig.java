@@ -12,6 +12,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadPoolExecutor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.minio.MinioClient;
 import java.nio.file.Paths;
@@ -26,13 +27,14 @@ public class AppConfig {
     }
     @Bean(name="documentExecutor") Executor documentExecutor() {
         ThreadPoolTaskExecutor executor=new ThreadPoolTaskExecutor(); executor.setCorePoolSize(2); executor.setMaxPoolSize(4);
-        executor.setQueueCapacity(20); executor.setThreadNamePrefix("document-"); executor.initialize(); return executor;
+        executor.setQueueCapacity(20); executor.setThreadNamePrefix("document-"); executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy()); executor.initialize(); return executor;
     }
     @Bean DocumentUploadValidator uploadValidator(@Value("${smartdoc.upload.max-bytes:20971520}") long max) { return new DocumentUploadValidator(max); }
     @Bean DocumentAccessPolicy accessPolicy() { return new DocumentAccessPolicy(); }
     @Bean TextChunker textChunker() { return new TextChunker(1000, 120); }
     @Bean KeywordRetriever keywordRetriever() { return new KeywordRetriever(); }
     @Bean PdfTextExtractor pdfTextExtractor() { return new PdfTextExtractor(); }
+    @Bean TextDocumentExtractor textDocumentExtractor() { return new TextDocumentExtractor(); }
     @Bean @ConditionalOnProperty(name="smartdoc.storage.type",havingValue="local",matchIfMissing=true)
     FileStorage localFileStorage(@Value("${smartdoc.storage.local-path:./data/files}") String path) { return new LocalFileStorage(Paths.get(path)); }
     @Bean @ConditionalOnProperty(name="smartdoc.storage.type",havingValue="minio")

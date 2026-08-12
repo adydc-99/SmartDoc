@@ -13,8 +13,8 @@ public class DocumentController {
     private final DocumentService service;
     public DocumentController(DocumentService service) { this.service=service; }
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    public DocumentRecord upload(@RequestParam("file") MultipartFile file, HttpServletRequest request) throws Exception {
-        return service.upload(CurrentUser.from(request).getUserId(), file);
+    public DocumentRecord upload(@RequestParam("file") MultipartFile file,@RequestParam(required=false) Long folderId, HttpServletRequest request) throws Exception {
+        return service.upload(CurrentUser.from(request).getUserId(), file,folderId);
     }
     @GetMapping public List<DocumentRecord> list(HttpServletRequest request) { return service.list(CurrentUser.from(request).getUserId()); }
     @GetMapping("/{id}") public DocumentRecord get(@PathVariable long id,HttpServletRequest request) { return service.get(CurrentUser.from(request).getUserId(),id); }

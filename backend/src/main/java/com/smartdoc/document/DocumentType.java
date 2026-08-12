@@ -1,12 +1,17 @@
 package com.smartdoc.document;
 
 import java.util.Locale;
+import java.util.Set;
 
 public enum DocumentType {
     PDF,
     MARKDOWN,
     TEXT,
     CODE;
+
+    private static final Set<String> EXTENSIONS = Set.of(
+            "pdf", "md", "markdown", "txt", "java", "xml", "yml", "yaml", "sql",
+            "js", "ts", "json", "properties", "sh", "ps1");
 
     public static DocumentType fromFilename(String filename) {
         if (filename == null) {
@@ -27,5 +32,14 @@ public enum DocumentType {
 
     public boolean isText() {
         return this != PDF;
+    }
+
+    public static String extensionFromFilename(String filename) {
+        fromFilename(filename);
+        String name = filename.toLowerCase(Locale.ROOT);
+        int dot = name.lastIndexOf('.');
+        String extension = dot < 0 ? "" : name.substring(dot + 1);
+        if (!EXTENSIONS.contains(extension)) throw new InvalidDocumentException("暂不支持该文件类型");
+        return extension;
     }
 }

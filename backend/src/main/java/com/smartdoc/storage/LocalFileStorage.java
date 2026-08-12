@@ -1,5 +1,6 @@
 package com.smartdoc.storage;
 
+import com.smartdoc.document.DocumentType;
 import java.io.*;
 import java.nio.file.*;
 import java.util.UUID;
@@ -9,7 +10,7 @@ public class LocalFileStorage implements FileStorage {
     public LocalFileStorage(Path root) { this.root = root.toAbsolutePath().normalize(); }
     public String save(String originalName, InputStream input) throws Exception {
         Files.createDirectories(root);
-        String key = UUID.randomUUID() + ".pdf";
+        String key = UUID.randomUUID() + "." + DocumentType.extensionFromFilename(originalName);
         Files.copy(input, safe(key), StandardCopyOption.REPLACE_EXISTING);
         return key;
     }
