@@ -7,3 +7,6 @@ spring:
   sql:
     init:
       mode: never
+smartdoc:
+  auth:
+    secret: ${SMARTDOC_AUTH_SECRET:}

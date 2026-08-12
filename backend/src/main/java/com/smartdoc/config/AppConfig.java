@@ -10,21 +10,20 @@ import org.springframework.context.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.minio.MinioClient;
 import java.nio.file.Paths;
 import java.time.Clock;
+import org.springframework.core.env.Environment;
 
 @Configuration
 public class AppConfig {
-    @Bean Clock clock() { return Clock.systemUTC(); }
+    @Bean Clock clock() { return Clock.systemDefaultZone(); }
     @Bean AuthTokenService authTokenService(@Value("${smartdoc.auth.secret:}") String secret,
-            @Value("${smartdoc.auth.ttl-seconds:86400}") long ttl) {
-        if (secret == null || secret.length() < 32) secret = UUID.randomUUID().toString() + UUID.randomUUID();
-        return new AuthTokenService(secret, ttl, Clock.systemUTC());
+            @Value("${smartdoc.auth.ttl-seconds:86400}") long ttl, Environment environment) {
+        return new AuthTokenService(AuthSecretPolicy.requireValid(secret, environment.getActiveProfiles()), ttl, Clock.systemUTC());
     }
     @Bean(name="documentExecutor") Executor documentExecutor() {
         ThreadPoolTaskExecutor executor=new ThreadPoolTaskExecutor(); executor.setCorePoolSize(2); executor.setMaxPoolSize(4);
@@ -43,10 +42,10 @@ public class AppConfig {
             @Value("${smartdoc.storage.minio.secret-key}") String secret,@Value("${smartdoc.storage.minio.bucket:smartdoc}") String bucket){
         return new MinioFileStorage(MinioClient.builder().endpoint(endpoint).credentials(access,secret).build(),bucket);
     }
-    @Bean @ConditionalOnProperty(name="smartdoc.ai.type",havingValue="demo",matchIfMissing=true) AiClient demoAiClient() { return new DemoAiClient(); }
-    @Bean @ConditionalOnProperty(name="smartdoc.ai.type",havingValue="openai") AiClient openAiClient(ObjectMapper json,
-            @Value("${smartdoc.ai.base-url}") String base,@Value("${smartdoc.ai.api-key}") String key,@Value("${smartdoc.ai.model}") String model){
-        SimpleClientHttpRequestFactory factory=new SimpleClientHttpRequestFactory(); factory.setConnectTimeout(10000); factory.setReadTimeout(60000);
-        return new OpenAiCompatibleClient(new RestTemplate(factory),json,base,key,model);
-    }
+    @Bean DailyAiQuota dailyAiQuota(Clock clock){return new DailyAiQuota(clock);}
+    @Bean SecretStore secretStore(@Value("${smartdoc.ai.key-file:./data/ai-key.bin}") String path){return new DpapiSecretStore(Paths.get(path));}
+    @Bean AiSettingsService aiSettingsService(SecretStore store,DailyAiQuota quota,@Value("${smartdoc.ai.api-key:}") String key){return new AiSettingsService(AiSettings.defaults(),key,store,quota);}
+    @Bean DeepSeekClientFactory deepSeekClientFactory(ObjectMapper json){return (settings,key)->{SimpleClientHttpRequestFactory factory=new SimpleClientHttpRequestFactory();factory.setConnectTimeout(5000);factory.setReadTimeout(30000);return new OpenAiCompatibleClient(new RestTemplate(factory),json,settings.getBaseUrl(),key,settings.getModel(),settings.getMaxOutputTokens());};}
+    @Bean DemoAiClient demoAiClient(){return new DemoAiClient();}
+    @Bean @Primary RoutingAiClient aiClient(AiSettingsService settings,DailyAiQuota quota,DemoAiClient demo,DeepSeekClientFactory factory){return new RoutingAiClient(settings,quota,demo,factory);}
 }
