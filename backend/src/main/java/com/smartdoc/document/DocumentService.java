@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -27,14 +28,17 @@ public class DocumentService {
     public DocumentRecord upload(long userId, MultipartFile file) throws Exception { return upload(userId,file,null); }
     public DocumentRecord upload(long userId, MultipartFile file, Long folderId) throws Exception {
         validator.validate(file);
-        String key = storage.save(file.getOriginalFilename(), file.getInputStream());
+        String key;
+        try(InputStream input=file.getInputStream()){key=storage.save(file.getOriginalFilename(),input);}
         DocumentRecord doc = new DocumentRecord();
         try {
             DocumentType type=DocumentType.fromFilename(file.getOriginalFilename());
             doc.setUserId(userId); doc.setName(file.getOriginalFilename());
             doc.setSizeBytes(file.getSize()); doc.setStorageKey(key); doc.setStatus("PROCESSING");
             doc.setDocumentType(type.name());doc.setMimeType(file.getContentType());doc.setFavorite(false);doc.setFolderId(folderId);
-            doc.setCreatedAt(LocalDateTime.now()); doc.setUpdatedAt(doc.getCreatedAt()); documents.insert(doc);
+            doc.setCreatedAt(LocalDateTime.now()); doc.setUpdatedAt(doc.getCreatedAt());
+            int inserted=documents.insert(doc);
+            if(inserted!=1 || doc.getId()==null)throw new IllegalStateException("Document insert did not persist exactly one row with an id");
         } catch (Exception e) {
             try { storage.delete(key); } catch (Exception cleanup) { e.addSuppressed(cleanup); }
             throw e;
@@ -43,17 +47,25 @@ public class DocumentService {
         return doc;
     }
     public DocumentRecord retry(long userId,long id){
+        DocumentRecord doc=get(userId,id);if(!"FAILED".equals(doc.getStatus()))throw new InvalidDocumentException("只有解析失败的文档可以重试");
+        long expectedVersion=doc.getProcessingVersion()==null?0L:doc.getProcessingVersion();
         try(DocumentLockManager.Handle ignored=locks.acquire(id)){
-            DocumentRecord doc=get(userId,id);if(!"FAILED".equals(doc.getStatus()))throw new InvalidDocumentException("只有解析失败的文档可以重试");
+            LocalDateTime claimedAt=LocalDateTime.now();
+            int claimed=documents.claimFailed(id,userId,expectedVersion,claimedAt);
+            if(claimed!=1)throw new InvalidDocumentException("文档重试状态已变化，请刷新后重试");
             chunks.delete(new LambdaQueryWrapper<DocumentChunkRecord>().eq(DocumentChunkRecord::getDocumentId,id));
-            doc.setStatus("PROCESSING");doc.setErrorMessage(null);doc.setContentText(null);doc.setPageCount(null);doc.setSummary(null);doc.setKeywords(null);doc.setUpdatedAt(LocalDateTime.now());documents.updateById(doc);
+            doc.setStatus("PROCESSING");doc.setErrorMessage(null);doc.setContentText(null);doc.setPageCount(null);doc.setSummary(null);doc.setKeywords(null);doc.setUpdatedAt(claimedAt);doc.setProcessingVersion(expectedVersion+1);
             submit(doc);return doc;
         }
     }
     public DeleteImpact deleteImpact(long userId,long id){get(userId,id);long count=questions.selectCount(new LambdaQueryWrapper<QuestionRecord>().eq(QuestionRecord::getDocumentId,id));return new DeleteImpact(0,0,count,0,0);}
     private void submit(DocumentRecord doc){
         try{processor.process(doc.getId());}
-        catch(java.util.concurrent.RejectedExecutionException rejected){doc.setStatus("FAILED");doc.setErrorMessage("文档处理队列繁忙，请稍后重试");doc.setUpdatedAt(LocalDateTime.now());documents.updateById(doc);}
+        catch(java.util.concurrent.RejectedExecutionException rejected){
+            doc.setStatus("FAILED");doc.setErrorMessage("文档处理队列繁忙，请稍后重试");doc.setUpdatedAt(LocalDateTime.now());
+            int updated=documents.updateById(doc);DocumentRecord stored=documents.selectById(doc.getId());
+            if(updated!=1 || stored==null || !"FAILED".equals(stored.getStatus()))throw new IllegalStateException("Unable to persist FAILED state after executor rejection",rejected);
+        }
     }
     public List<DocumentRecord> list(long userId) {
         return documents.selectList(new LambdaQueryWrapper<DocumentRecord>().eq(DocumentRecord::getUserId, userId)

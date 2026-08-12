@@ -22,6 +22,7 @@ public class DocumentRecord {
     private Long folderId;
     private LocalDateTime lastOpenedAt;
     private String contentText;
+    @JsonIgnore private Long processingVersion;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     public Long getId() { return id; } public void setId(Long id) { this.id = id; }
@@ -40,6 +41,7 @@ public class DocumentRecord {
     public Long getFolderId() { return folderId; } public void setFolderId(Long folderId) { this.folderId = folderId; }
     public LocalDateTime getLastOpenedAt() { return lastOpenedAt; } public void setLastOpenedAt(LocalDateTime lastOpenedAt) { this.lastOpenedAt = lastOpenedAt; }
     public String getContentText() { return contentText; } public void setContentText(String contentText) { this.contentText = contentText; }
+    public Long getProcessingVersion() { return processingVersion; } public void setProcessingVersion(Long processingVersion) { this.processingVersion = processingVersion; }
     public LocalDateTime getCreatedAt() { return createdAt; } public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; } public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

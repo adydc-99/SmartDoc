@@ -22,3 +22,5 @@
 - Independent review found post-insert failures were inside the upload compensation catch and retry lacked per-document serialization. Added a failing storage-deletion regression, narrowed compensation to insert only, and guarded retry with `DocumentLockManager`.
 - Re-review found `DocumentLockManager` could remove an entry while another handle still owned it. Deterministic `DocumentLockManagerTest` failed, then passed after atomically reference-counting holders/waiters.
 - Final Task 3 verification after review fixes: focused 51/51; full backend 66/66 (BUILD SUCCESS, 9.040 s). Independent final re-review approved.
+- Controller-gate remediation: fixed multipart request envelope, insert result/id validation, explicit upload stream closure, version-token retry claim, and verified real-executor rejection persistence. Focused 58/58; full backend 73/73.
+- Independent remediation review approved with no Critical or Important findings; fresh and incremental MySQL scripts both include `processing_version`.

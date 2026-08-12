@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS document_record (
   summary TEXT NULL,
   keywords VARCHAR(1000) NULL,
   error_message VARCHAR(500) NULL,
+  processing_version BIGINT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL,
   INDEX idx_document_user_created (user_id, created_at)
