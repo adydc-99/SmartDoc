@@ -66,7 +66,7 @@ public class LibraryService {
             documentTags.delete(new LambdaQueryWrapper<DocumentTagRecord>().eq(DocumentTagRecord::getDocumentId,documentId));
             for(Long tagId:requested){DocumentTagRecord link=new DocumentTagRecord();link.setDocumentId(documentId);link.setTagId(tagId);documentTags.insert(link);}
         }
-        return item(document);
+        return items(Collections.singletonList(document)).get(0);
     }
     public List<DocumentListItem> listDocuments(long userId,Long folderId,Long tagId,Boolean favorite,String type,String sort,String query){
         SortOrder order=parseSort(sort);
@@ -75,12 +75,19 @@ public class LibraryService {
         if(type!=null && !type.trim().isEmpty())wrapper.eq(DocumentRecord::getDocumentType,type);
         if(query!=null && !query.trim().isEmpty())wrapper.apply("LOWER(name) LIKE {0}","%"+query.trim().toLowerCase(Locale.ROOT)+"%");
         if(tagId!=null)wrapper.inSql(DocumentRecord::getId,"SELECT document_id FROM document_tag WHERE tag_id = "+tagId);
-        applySort(wrapper,order); List<DocumentListItem> result=new ArrayList<>();for(DocumentRecord document:documents.selectList(wrapper))result.add(item(document));return result;
+        applySort(wrapper,order); return items(documents.selectList(wrapper));
     }
-    private DocumentListItem item(DocumentRecord document){
-        List<DocumentTagRecord> links=documentTags.selectList(new LambdaQueryWrapper<DocumentTagRecord>().eq(DocumentTagRecord::getDocumentId,document.getId()));
-        if(links.isEmpty())return new DocumentListItem(document,Collections.emptyList()); List<Long> ids=new ArrayList<>();for(DocumentTagRecord link:links)ids.add(link.getTagId());
-        List<TagView> views=new ArrayList<>();for(TagRecord tag:tags.selectBatchIds(ids))views.add(new TagView(tag));views.sort(Comparator.comparing(TagView::getName,String.CASE_INSENSITIVE_ORDER));return new DocumentListItem(document,views);
+    private List<DocumentListItem> items(List<DocumentRecord> records){
+        if(records.isEmpty())return Collections.emptyList();
+        List<Long> documentIds=new ArrayList<>();for(DocumentRecord document:records)documentIds.add(document.getId());
+        List<DocumentTagRecord> links=documentTags.selectList(new LambdaQueryWrapper<DocumentTagRecord>().in(DocumentTagRecord::getDocumentId,documentIds));
+        LinkedHashSet<Long> tagIds=new LinkedHashSet<>();for(DocumentTagRecord link:links)tagIds.add(link.getTagId());
+        Map<Long,TagView> tagsById=new HashMap<>();if(!tagIds.isEmpty())for(TagRecord tag:tags.selectBatchIds(tagIds))tagsById.put(tag.getId(),new TagView(tag));
+        Map<Long,List<TagView>> tagsByDocument=new HashMap<>();
+        for(DocumentTagRecord link:links){TagView tag=tagsById.get(link.getTagId());if(tag!=null)tagsByDocument.computeIfAbsent(link.getDocumentId(),ignored->new ArrayList<>()).add(tag);}
+        Comparator<TagView> tagOrder=Comparator.comparing(TagView::getName,String.CASE_INSENSITIVE_ORDER).thenComparing(TagView::getId);
+        tagsByDocument.values().forEach(documentTags -> documentTags.sort(tagOrder));
+        List<DocumentListItem> result=new ArrayList<>();for(DocumentRecord document:records)result.add(new DocumentListItem(document,tagsByDocument.getOrDefault(document.getId(),Collections.emptyList())));return result;
     }
     private SortOrder parseSort(String value){
         String normalized=value==null||value.trim().isEmpty()?"updated,desc":value.trim().toLowerCase(Locale.ROOT).replace(":",",").replace("_",",");

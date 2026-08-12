@@ -11,6 +11,7 @@ import com.smartdoc.library.mapper.TagMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -117,6 +118,27 @@ class LibraryServiceTest {
         verifyNoInteractions(documents);
     }
 
+    @Test
+    void batchesTagHydrationForAllReturnedDocuments() {
+        DocumentRecord first = document(8L, 1L); first.setName("First");
+        DocumentRecord second = document(9L, 1L); second.setName("Second");
+        when(documents.selectList(any())).thenReturn(Arrays.asList(first, second));
+        DocumentTagRecord firstBeta = link(8L, 3L);
+        DocumentTagRecord firstAlpha = link(8L, 2L);
+        DocumentTagRecord secondAlpha = link(9L, 2L);
+        when(documentTags.selectList(any())).thenReturn(Arrays.asList(firstBeta, firstAlpha, secondAlpha));
+        when(tags.selectBatchIds(anyCollection())).thenReturn(Arrays.asList(namedTag(3L, "Beta"), namedTag(2L, "Alpha")));
+
+        List<DocumentListItem> result = service.listDocuments(1L, null, null, null, null, null, null);
+
+        assertEquals(Arrays.asList(8L, 9L), Arrays.asList(result.get(0).getId(), result.get(1).getId()));
+        assertEquals(Arrays.asList("Alpha", "Beta"), Arrays.asList(
+                result.get(0).getTags().get(0).getName(), result.get(0).getTags().get(1).getName()));
+        assertEquals(Collections.singletonList("Alpha"), Collections.singletonList(result.get(1).getTags().get(0).getName()));
+        verify(documentTags, times(1)).selectList(any());
+        verify(tags, times(1)).selectBatchIds(anyCollection());
+    }
+
     private FolderRecord folder(long id, Long parentId, String name, int sortOrder) {
         FolderRecord folder = new FolderRecord();
         folder.setId(id);
@@ -132,5 +154,13 @@ class LibraryServiceTest {
 
     private TagRecord tag(long id) {
         TagRecord tag = new TagRecord(); tag.setId(id); tag.setName("tag-" + id); tag.setColor("#123456"); return tag;
+    }
+
+    private TagRecord namedTag(long id, String name) {
+        TagRecord tag = tag(id); tag.setName(name); return tag;
+    }
+
+    private DocumentTagRecord link(long documentId, long tagId) {
+        DocumentTagRecord link = new DocumentTagRecord(); link.setDocumentId(documentId); link.setTagId(tagId); return link;
     }
 }
