@@ -29,6 +29,9 @@ class SearchSqlBoundsTest {
             assertTrue(sql.toLowerCase().contains(" like "), sql);
             assertTrue(sql.toLowerCase().contains(" escape '!'"), sql);
             assertTrue(sql.toLowerCase().contains(" limit ?"), sql);
+            assertTrue(sql.toLowerCase().contains("locate("), sql);
+            assertTrue(sql.toLowerCase().contains("match_prefix"), sql);
+            assertFalse(sql.contains("${"), sql);
             List<Object> parameters = java.util.Arrays.asList(query.getArguments()).subList(2, query.getArguments().length);
             assertTrue(parameters.contains("%!%!_\\'quoted%"), parameters.toString());
             assertTrue(parameters.contains(30), parameters.toString());

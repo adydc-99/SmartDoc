@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Locale;
 
 @Service
 public class ReaderService {
@@ -65,14 +64,11 @@ public class ReaderService {
         String needle = requireQuery(query);
         int limit = requestedLimit == null ? 50 : requestedLimit;
         if (limit < 1 || limit > 50) throw new InvalidDocumentException("搜索数量必须在 1 到 50 之间");
-        List<DocumentChunkRecord> records = chunks.selectOwnedMatching(userId, documentId, likePattern(needle), limit);
+        List<DocumentChunkRecord> records = chunks.selectOwnedMatching(userId, documentId, needle, likePattern(needle), limit);
         List<SearchHit> result = new ArrayList<>();
         for (DocumentChunkRecord record : records) {
-            int match = indexOfIgnoreCase(record.getContent(), needle);
-            if (match >= 0) {
-                result.add(snippet(record, match, needle.length()));
-                if (result.size() == limit) break;
-            }
+            int match = record.getMatchPrefix() == null ? 0 : record.getMatchPrefix().length();
+            result.add(snippet(record, match, needle.length()));
         }
         return result;
     }
@@ -83,13 +79,8 @@ public class ReaderService {
         if (length < 2 || length > 100) throw new InvalidDocumentException("搜索关键词长度必须在 2 到 100 之间");
         return trimmed;
     }
-    private int indexOfIgnoreCase(String text, String needle) {
-        if (text == null) return -1;
-        for (int index=0; index+needle.length()<=text.length(); index++) if (text.regionMatches(true,index,needle,0,needle.length())) return index;
-        return -1;
-    }
     private String likePattern(String value) {
-        return "%" + value.toLowerCase(Locale.ROOT).replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+        return "%" + value.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
     }
     private SearchHit snippet(DocumentChunkRecord chunk, int match, int matchLength) {
         String text = chunk.getContent();

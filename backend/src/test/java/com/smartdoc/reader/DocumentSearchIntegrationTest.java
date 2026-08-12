@@ -71,7 +71,7 @@ class DocumentSearchIntegrationTest {
 
         assertEquals(3, hits.size());
         assertEquals(List.of(0, 1, 2), List.of(hits.get(0).getChunkIndex(), hits.get(1).getChunkIndex(), hits.get(2).getChunkIndex()));
-        assertEquals(3, chunks.selectOwnedMatching(14L, document.getId(), "%!%!_\\%", 3).size());
+        assertEquals(3, chunks.selectOwnedMatching(14L, document.getId(), "%_\\", "%!%!_\\%", 3).size());
     }
 
     private DocumentRecord document(long owner, String name) {
