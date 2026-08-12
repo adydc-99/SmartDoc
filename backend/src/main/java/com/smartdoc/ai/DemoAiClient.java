@@ -26,4 +26,12 @@ public class DemoAiClient implements AiClient {
         String evidence = references.stream().map(TextChunk::getContent).collect(Collectors.joining(" "));
         return "根据文档相关内容：" + evidence.substring(0, Math.min(320, evidence.length()));
     }
+
+    @Override public String complete(String systemInstruction, String userPrompt) {
+        String clean=userPrompt==null?"":userPrompt.trim();
+        int count=clean.codePointCount(0,clean.length()),end=count<=320?clean.length():clean.offsetByCodePoints(0,320);
+        return "演示模式结果："+clean.substring(0,end);
+    }
+    @Override public AiMode mode(){return AiMode.DEMO;}
+    @Override public String model(){return "demo";}
 }

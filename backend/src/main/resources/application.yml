@@ -36,3 +36,5 @@ smartdoc:
       bucket: ${MINIO_BUCKET:smartdoc}
   ai:
     api-key: ${AI_API_KEY:}
+    context-code-points: ${AI_CONTEXT_CODE_POINTS:24000}
+    source-code-points: ${AI_SOURCE_CODE_POINTS:4000}

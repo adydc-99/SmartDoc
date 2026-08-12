@@ -1,6 +1,7 @@
 package com.smartdoc.document;
 
 import com.smartdoc.ai.AiClient;
+import com.smartdoc.ai.*;
 import com.smartdoc.chat.QuestionService;
 import com.smartdoc.document.mapper.DocumentMapper;
 import com.smartdoc.storage.FileStorage;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.*;
 @SpringBootTest(properties="spring.datasource.url=jdbc:h2:mem:delete-races;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1")
 class DocumentDeletionRaceIntegrationTest {
  @Autowired DocumentMapper documents;@Autowired DocumentProcessor processor;@Autowired DocumentService service;@Autowired QuestionService questions;@Autowired JdbcTemplate jdbc;
+ @Autowired AiActionService actions;
  @MockBean FileStorage storage;@MockBean AiClient ai;
 
  @Test void parserHoldingDocumentRowFinishesBeforeDeleteAndLeavesNoChunks()throws Exception{
@@ -36,6 +38,12 @@ class DocumentDeletionRaceIntegrationTest {
   CountDownLatch asked=new CountDownLatch(1),release=new CountDownLatch(1);when(ai.answer(anyString(),anyList())).thenAnswer(call->{asked.countDown();assertTrue(release.await(2,TimeUnit.SECONDS));return "answer";});
   ExecutorService pool=Executors.newFixedThreadPool(2);try{Future<?> question=pool.submit(()->ask(id));assertTrue(asked.await(2,TimeUnit.SECONDS));Future<?> deletion=pool.submit(()->delete(id));Thread.sleep(100);assertFalse(deletion.isDone(),"delete must wait for question DB row lock");release.countDown();question.get(3,TimeUnit.SECONDS);deletion.get(3,TimeUnit.SECONDS);}finally{pool.shutdownNow();}
   assertEquals(0,count("document_record",id));assertEquals(0,count("question_history",id));
+ }
+ @Test void aiActionHoldingDocumentRowCommitsBeforeDeleteAndResultIsThenRemoved()throws Exception{
+  long id=document("READY","PDF");jdbc.update("INSERT INTO document_chunk(document_id,chunk_index,page_number,content) VALUES(?,0,1,'cache evidence')",id);
+  CountDownLatch called=new CountDownLatch(1),release=new CountDownLatch(1);when(ai.mode()).thenReturn(AiMode.DEMO);when(ai.model()).thenReturn("demo");when(ai.complete(anyString(),anyString())).thenAnswer(call->{called.countDown();assertTrue(release.await(2,TimeUnit.SECONDS));return "answer";});
+  ExecutorService pool=Executors.newFixedThreadPool(2);try{Future<?> action=pool.submit(()->actions.execute(7L,id,new AiActionRequest(AiAction.ASK,"race question",null,null,false)));assertTrue(called.await(2,TimeUnit.SECONDS));Future<?> deletion=pool.submit(()->delete(id));Thread.sleep(100);assertFalse(deletion.isDone(),"delete must wait for AI action lock");release.countDown();action.get(3,TimeUnit.SECONDS);deletion.get(3,TimeUnit.SECONDS);}finally{pool.shutdownNow();}
+  assertEquals(0,count("document_record",id));assertEquals(0,count("ai_result",id));
  }
  private long document(String status,String type){LocalDateTime now=LocalDateTime.now();DocumentRecord d=new DocumentRecord();d.setUserId(7L);d.setName("race.txt");d.setSizeBytes(1L);d.setPageCount(1);d.setStorageKey("race-key");d.setStatus(status);d.setDocumentType(type);d.setFavorite(false);d.setCreatedAt(now);d.setUpdatedAt(now);documents.insert(d);return d.getId();}
  private int count(String table,long id){return jdbc.queryForObject("SELECT COUNT(*) FROM "+table+" WHERE "+(table.equals("document_record")?"id":"document_id")+"=?",Integer.class,id);}
