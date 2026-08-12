@@ -1,5 +1,14 @@
 import {api} from '../api';import type {Note} from './reader'
-export type AiAction='ASK'|'SUMMARIZE_DOCUMENT'|'SUMMARIZE_PAGE'|'EXPLAIN_SELECTION'|'SUMMARIZE_SELECTION'|'EXPLAIN_CODE'
+export const BACKEND_AI_ACTIONS=['ASK','DOCUMENT_SUMMARY','CURRENT_PAGE_SUMMARY','EXPLAIN','SUMMARIZE','EXPLAIN_CODE','LINE_BY_LINE','COMPLEXITY','FIND_ISSUES','GENERATE_EXAMPLE','INTERVIEW_QUESTION'] as const
+export type AiAction=typeof BACKEND_AI_ACTIONS[number]
+export const AI_ACTION_OPTIONS=[
+ {value:'ASK',label:'提问'},
+ {value:'DOCUMENT_SUMMARY',label:'总结全文'},
+ {value:'CURRENT_PAGE_SUMMARY',label:'总结当前页'},
+ {value:'EXPLAIN',label:'解释选区'},
+ {value:'SUMMARIZE',label:'总结选区'},
+ {value:'EXPLAIN_CODE',label:'解释代码'},
+] as const satisfies readonly {value:AiAction;label:string}[]
 export interface AiResult{id:number;action:AiAction;content:string;mode:string;cached:boolean;createdAt:string;source:{documentId:number;pageNumber:number|null;text:string}}
 export interface AiSettings{mode:'DEMO'|'DEEPSEEK';baseUrl:string;model:string;maskedKey:string;keyConfigured:boolean;persistenceAvailable:boolean;persistKey:boolean;maxOutputTokens:number;dailyLimit:number;todayUsed:number}
 export const searchNotes=(params:Record<string,unknown>)=>(api.get<Note[]>('/notes',{params})).then(r=>r.data)

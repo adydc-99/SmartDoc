@@ -46,3 +46,16 @@ Verification evidence:
 - Initial `pnpm build` exposed TypeScript-only integration issues (PDF.js subpath declarations, DTO typing, template navigator access). After minimal type-boundary fixes, final `pnpm build`: exit 0; 1,786 modules transformed and production assets emitted in 6.45 s.
 
 Honest remaining concern: the PDF reader intentionally renders one full page at a time and bounds eager thumbnails to the first 20 pages; all pages remain reachable through page controls/search, and this compromise is stated visibly in the reader. The existing global Element Plus vendor chunk is still large (926.95 kB, 299.60 kB gzip) despite route and reader-vendor splitting; replacing global Element Plus registration with per-component imports is a separate optimization.
+
+## Final API contract correction
+
+Final merge review identified and corrected two frontend/backend mismatches without changing the backend:
+
+- Visible AI actions and TypeScript payloads now use the exact `AiAction` enum names: `ASK`, `DOCUMENT_SUMMARY`, `CURRENT_PAGE_SUMMARY`, `EXPLAIN`, `SUMMARIZE`, and `EXPLAIN_CODE`. The shared whitelist also includes all remaining backend actions and is guarded by a contract test.
+- Note creation now sends the current page for PDF documents and page `1` for Markdown, text, and code documents, matching `NoteService.validatePage`.
+
+Verification:
+
+- Focused Vitest: 2 files, 6 tests passed.
+- Full `pnpm test`: exit 0; 12 files, 19 tests passed in 2.60 s.
+- `pnpm build`: exit 0; 1,786 modules transformed and assets emitted in 6.31 s. The previously documented Element Plus chunk-size warning remains unchanged.
