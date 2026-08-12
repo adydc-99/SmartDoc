@@ -1,0 +1,39 @@
+server:
+  port: 8080
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/smartdoc;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  jackson:
+    default-property-inclusion: non_null
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+smartdoc:
+  auth:
+    secret: ${SMARTDOC_AUTH_SECRET:}
+    ttl-seconds: 86400
+  upload:
+    max-bytes: 20971520
+  storage:
+    type: ${SMARTDOC_STORAGE_TYPE:local}
+    local-path: ${SMARTDOC_LOCAL_STORAGE:./data/files}
+    minio:
+      endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+      access-key: ${MINIO_ACCESS_KEY:smartdoc}
+      secret-key: ${MINIO_SECRET_KEY:smartdoc123}
+      bucket: ${MINIO_BUCKET:smartdoc}
+  ai:
+    type: ${SMARTDOC_AI_TYPE:demo}
+    base-url: ${AI_BASE_URL:https://api.deepseek.com/v1}
+    api-key: ${AI_API_KEY:}
+    model: ${AI_MODEL:deepseek-chat}

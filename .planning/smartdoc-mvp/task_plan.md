@@ -6,11 +6,11 @@
 ## 阶段
 - [x] 范围与架构设计
 - [x] 实施计划
-- [ ] 后端认证与核心领域
-- [ ] 文档上传、解析与问答
-- [ ] Vue 展示界面
-- [ ] Docker 与 README
-- [ ] 完整验证
+- [x] 后端认证与核心领域
+- [x] 文档上传、解析与问答
+- [x] Vue 展示界面
+- [x] Docker 与 README
+- [x] 完整验证
 
 ## 固定决策
 - Java 11 + Spring Boot 2.7，适配当前机器。
@@ -21,3 +21,4 @@
 ## 已知环境问题
 - Docker CLI 已安装但 Docker Desktop daemon 未启动；Compose 只做静态配置与后续验证。
 - `rg.exe` 在当前环境 Access Denied，文本搜索改用 PowerShell `Select-String`。
+- pnpm 11 默认阻止 esbuild 安装脚本，且白名单已迁移到工作区配置；已在 `pnpm-workspace.yaml` 中仅放行 esbuild。
