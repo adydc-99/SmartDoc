@@ -1,0 +1,1 @@
+<template><div class="page boundary-page phase-two"><p class="eyebrow">PHASE 2</p><h1>复习系统将在第二阶段开放</h1><p>间隔复习、题目卡片和掌握度统计不属于当前阶段，因此这里不生成任何虚假进度或数量。</p><RouterLink class="button secondary" to="/">返回工作台</RouterLink></div></template>

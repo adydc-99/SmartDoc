@@ -1,0 +1,1 @@
+<template><div class="page boundary-page"><p class="eyebrow">NOTES</p><h1>全部笔记</h1><p>笔记聚合与编辑器将在阅读器任务中完成。这里保留稳定的深链接入口。</p><RouterLink class="button secondary" to="/library">浏览资料</RouterLink></div></template>
