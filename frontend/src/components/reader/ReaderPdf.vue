@@ -1,0 +1,9 @@
+<script setup lang="ts">
+import{nextTick,onBeforeUnmount,onMounted,ref,watch}from'vue';import type{PDFDocumentProxy}from'pdfjs-dist';import{loadPdf,renderPdfPage}from'../../reader/pdf'
+const props=defineProps<{blob:Blob;page:number;zoom:number}>(),emit=defineEmits<{pages:[number],page:[number],text:[string]}>();const canvas=ref<HTMLCanvasElement>(),pdf=ref<PDFDocumentProxy>(),url=ref(''),pages=ref(0),thumbs=ref<HTMLCanvasElement[]>([]),busy=ref(true),selectableText=ref('')
+const draw=async()=>{if(!pdf.value||!canvas.value)return;busy.value=true;const result=await renderPdfPage(pdf.value,props.page,canvas.value,props.zoom);selectableText.value=result.text;emit('text',result.text);busy.value=false}
+const setThumb=(element:any,index:number)=>{if(element)thumbs.value[index]=element as HTMLCanvasElement}
+onMounted(async()=>{const loaded=await loadPdf(props.blob);pdf.value=loaded.document;url.value=loaded.url;pages.value=loaded.document.numPages;emit('pages',pages.value);await nextTick();await Promise.all(thumbs.value.map((item,index)=>renderPdfPage(loaded.document,index+1,item,.18)));await draw()});watch(()=>[props.page,props.zoom],draw)
+onBeforeUnmount(()=>{void pdf.value?.destroy();if(url.value)URL.revokeObjectURL(url.value)})
+</script>
+<template><div class="pdf-reader"><nav class="pdf-thumbnails" aria-label="PDF 缩略图"><small v-if="pages>20">为保证性能仅预览前 20 页；页码框仍可跳转全部页面。</small><button v-for="n in Math.min(pages,20)" :key="n" :class="{active:n===page}" :aria-label="`转到第 ${n} 页`" @click="emit('page',n)"><canvas :ref="el=>setThumb(el,n-1)"/><span>{{n}}</span></button></nav><section class="pdf-page" aria-live="polite"><p v-if="busy">正在渲染第 {{page}} 页…</p><canvas ref="canvas"/><div class="pdf-selectable-text" aria-label="本页可选择文本">{{selectableText}}</div></section></div></template>

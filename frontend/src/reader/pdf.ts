@@ -1,0 +1,5 @@
+import type {PDFDocumentProxy,PDFPageProxy} from 'pdfjs-dist'
+import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+export interface LoadedPdf{document:PDFDocumentProxy;url:string}
+export async function loadPdf(blob:Blob):Promise<LoadedPdf>{const url=URL.createObjectURL(blob);try{const pdfjs=await import('pdfjs-dist');pdfjs.GlobalWorkerOptions.workerSrc=workerUrl;return{document:await pdfjs.getDocument(url).promise,url}}catch(error){URL.revokeObjectURL(url);throw error}}
+export async function renderPdfPage(document:PDFDocumentProxy,pageNumber:number,canvas?:HTMLCanvasElement,scale=1){const page:PDFPageProxy=await document.getPage(pageNumber),viewport=page.getViewport({scale}),text=await page.getTextContent();if(canvas){const context=canvas.getContext('2d');if(context){canvas.width=Math.floor(viewport.width);canvas.height=Math.floor(viewport.height);await page.render({canvas,canvasContext:context,viewport}).promise}}return{text:text.items.map(item=>'str'in item?item.str:'').join(' '),width:viewport.width,height:viewport.height}}

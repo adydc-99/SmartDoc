@@ -24,3 +24,25 @@ Consequently this is a focused, reviewable frontend increment, not a completed a
 ## Manual database reminder
 
 No SQL was generated or executed in this task. Existing scripts remain manual: `scripts/alter_smartdoc_study_workspace.sql`, and `scripts/alter_document_record_processing_version.sql` only if the first migration was already applied.
+
+## Follow-up completion after dependency recovery
+
+The external registry blocker was resolved with `pnpm install --no-optional --network-concurrency=1 --fetch-timeout=300000`; the resulting `pnpm-lock.yaml` is committed.
+
+Completed the bounded production reader:
+
+- PDF.js worker, current-page canvas rendering, first-20-page thumbnails, page controls, zoom/fit/fullscreen, selectable extracted current-page text, backend document search, and deterministic PDF destroy/object-URL revoke.
+- Markdown-it rendering passed through DOMPurify, plus explicit Highlight.js languages, line numbers and copy.
+- Restored progress, 800 ms scroll/zoom debounce, immediate page save, and leave/unmount flush.
+- Selection toolbar; note editor/sanitized preview/CRUD/tags/favorite/source/page/jump; responsive drawers and resizable 240–480 px desktop panels.
+- Typed AI actions for ask, document/page/selection summaries and selection/code explanation, with duplicate-submit blocking, mode/cache/time/source display, source jumps and explicit forced regeneration.
+- Typed AI settings Pinia store with a component-local transient key, immediate input clearing on both success and error, masked state only, DPAPI availability explanation, clear/test/error/quota UI, and a browser-persistence regression test.
+- Literal note search, favorite/document/tag filters and Markdown export with URL cleanup.
+
+Verification evidence:
+
+- Focused TDD RED exposed missing render/PDF/progress behavior; focused GREEN finished with 3 files and 5 tests passing.
+- `pnpm test`: exit 0; 11 test files and 16 tests passed in 2.44 s.
+- Initial `pnpm build` exposed TypeScript-only integration issues (PDF.js subpath declarations, DTO typing, template navigator access). After minimal type-boundary fixes, final `pnpm build`: exit 0; 1,786 modules transformed and production assets emitted in 6.45 s.
+
+Honest remaining concern: the PDF reader intentionally renders one full page at a time and bounds eager thumbnails to the first 20 pages; all pages remain reachable through page controls/search, and this compromise is stated visibly in the reader. The existing global Element Plus vendor chunk is still large (926.95 kB, 299.60 kB gzip) despite route and reader-vendor splitting; replacing global Element Plus registration with per-component imports is a separate optimization.

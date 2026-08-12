@@ -7,3 +7,5 @@ export const getReaderContent=async(id:number,type:string):Promise<ReaderContent
 export const getProgress=(id:number)=>(api.get<Progress>(`/documents/${id}/progress`)).then(r=>r.data)
 export const saveProgress=(id:number,value:Omit<Progress,'updatedAt'>)=>(api.put<Progress>(`/documents/${id}/progress`,value)).then(r=>r.data)
 export const listDocumentNotes=(id:number)=>(api.get<Note[]>(`/documents/${id}/notes`)).then(r=>r.data)
+export interface DocumentSearchHit{pageNumber:number;chunkIndex:number;snippet:string;matchStart:number;matchLength:number}
+export const searchDocument=(id:number,q:string)=>(api.get<DocumentSearchHit[]>(`/documents/${id}/search`,{params:{q}})).then(r=>r.data)

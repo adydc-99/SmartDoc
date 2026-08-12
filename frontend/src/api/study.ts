@@ -9,5 +9,6 @@ export const deleteNote=(id:number)=>api.delete(`/notes/${id}`)
 export const exportNotes=(documentId:number)=>api.get('/notes/export',{params:{documentId},responseType:'blob'})
 export const runAi=(documentId:number,value:{action:AiAction;question?:string;selectedText?:string;pageNumber?:number;force:boolean})=>(api.post<AiResult>(`/documents/${documentId}/ai/actions`,value)).then(r=>r.data)
 export const getAiSettings=()=>(api.get<AiSettings>('/settings/ai')).then(r=>r.data)
-export const saveAiSettings=(value:Record<string,unknown>)=>(api.put<AiSettings>('/settings/ai',value)).then(r=>r.data)
+export interface AiSettingsUpdate{mode:'DEMO'|'DEEPSEEK';baseUrl:string;model:string;apiKey:string;persistKey:boolean;maxOutputTokens:number;dailyLimit:number}
+export const saveAiSettings=(value:AiSettingsUpdate)=>(api.put<AiSettings>('/settings/ai',value)).then(r=>r.data)
 export const clearAiKey=()=>api.delete('/settings/ai/key');export const testAi=()=>api.post<{success:boolean;message:string}>('/settings/ai/test').then(r=>r.data)
