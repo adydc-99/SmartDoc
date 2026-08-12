@@ -11,13 +11,18 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "axios": "^1.7.9",
+    "dompurify": "^3.2.6",
     "element-plus": "^2.9.3",
+    "highlight.js": "^11.11.1",
+    "markdown-it": "^14.1.0",
+    "pdfjs-dist": "^5.4.54",
     "pinia": "^4.0.2",
     "vue": "^3.5.13",
     "vue-router": "^5.2.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
+    "@types/markdown-it": "^14.1.2",
     "@vue/test-utils": "^2.4.11",
     "jsdom": "^30.0.1",
     "typescript": "~5.7.2",

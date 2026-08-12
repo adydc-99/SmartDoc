@@ -112,3 +112,13 @@ pnpm build
 ## 首版边界
 
 仅支持最大 20 MB 的文本型 PDF；扫描件 OCR、DOCX、Redis 限流、流式回答和 PGVector 放在第二阶段。这个边界是有意为之：首版优先保证完整、可运行、可解释。
+
+## 学习工作区快速开始
+
+SmartDoc 支持 PDF、Markdown、TXT 和常见代码文件。前端通过 `/api` 访问 Spring Boot；默认 H2 配置适合本地快速启动，MySQL 结构变更请手动执行 `scripts/alter_smartdoc_study_workspace.sql`，若先前已应用首版工作区迁移，再执行 `scripts/alter_document_record_processing_version.sql`。
+
+AI 有 Demo 与 DeepSeek 两种模式。Demo 不联网；DeepSeek 只接收当前资料、当前页或明确选中的文本，token 上限和每日额度可在设置页控制。API 密钥不会写入浏览器存储、URL 或日志；提交后输入框立即清空，Windows DPAPI 可用时才允许持久化，否则仅保存在服务进程内存。
+
+前端测试与构建：`pnpm test`、`pnpm build`。架构按路由拆分阅读器、笔记与设置页面，PDF/Markdown/语法高亮依赖只在阅读器路由加载。
+
+截图：待浏览器集成验收后补充。

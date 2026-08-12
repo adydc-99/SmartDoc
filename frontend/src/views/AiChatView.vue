@@ -1,1 +1,1 @@
-<template><div class="page boundary-page"><p class="eyebrow">CURRENT DOCUMENT ONLY</p><h1>当前资料 AI 对话</h1><p>AI 问答只使用你当前打开的资料及该资料的历史记录，不会伪装成跨资料 RAG。请从资料库打开一份资料后开始。</p><RouterLink class="button primary" to="/library">选择资料</RouterLink></div></template>
+<template><div class="page boundary-page"><p class="eyebrow">CURRENT DOCUMENT ONLY</p><h1>当前资料 AI</h1><p>AI 仅使用当前打开的资料、当前页或你选中的文本。当前版本不提供跨资料知识库，也不会虚构全局历史。请从资料库打开一份资料，在阅读器右侧面板发起提问、总结或解释。</p><RouterLink class="button primary" to="/library">选择资料</RouterLink></div></template>

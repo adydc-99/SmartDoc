@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
-
-const route = useRoute()
+import {onMounted,ref} from 'vue';import {useRoute} from 'vue-router';import {getReaderDocument,getReaderContent,getProgress,listDocumentNotes} from '../api/reader'
+const route=useRoute(),loading=ref(true),error=ref(''),title=ref(''),content=ref(''),zoom=ref(100),ratio=ref(0),notesOpen=ref(false)
+onMounted(async()=>{try{const id=Number(route.params.id);const [doc,progress]=await Promise.all([getReaderDocument(id),getProgress(id),listDocumentNotes(id)]).then(([d,p])=>[d,p] as const);title.value=doc.name;zoom.value=Math.round(progress.zoom*100);ratio.value=progress.scrollRatio;const body=await getReaderContent(id,doc.documentType??'TXT');content.value=body instanceof Blob?'PDF 由浏览器 PDF.js 阅读器加载。':body.content}catch{error.value='资料暂时无法加载'}finally{loading.value=false}})
 </script>
-<template><div class="page boundary-page"><p class="eyebrow">READER</p><h1>资料阅读器</h1><p>正在准备资料 #{{ route.params.id }}。PDF、Markdown、文本与代码阅读器将在下一任务中接入。</p><RouterLink class="button secondary" to="/library">返回资料库</RouterLink></div></template>
+<template><div class="page reader-page"><header><RouterLink to="/library">返回资料库</RouterLink><h1>{{title||'阅读器'}}</h1><button data-test="mobile-notes-button" class="button secondary" @click="notesOpen=true">笔记</button></header><label>缩放 <input v-model="zoom" aria-label="缩放比例" type="number" min="50" max="300"></label><main data-test="reader-scroll" :data-restored-ratio="ratio"><p v-if="loading">正在加载…</p><p v-else-if="error" role="alert">{{error}}</p><pre v-else>{{content}}</pre></main><aside v-if="notesOpen"><button @click="notesOpen=false">关闭</button><h2>笔记</h2><p>选择正文后可写笔记。</p></aside></div></template>
