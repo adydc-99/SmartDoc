@@ -15,6 +15,31 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import org.springframework.http.HttpStatus;
 
 class OpenAiChatCompletionsAdapterTest {
+    @Test void postsExactOpenAiMultimodalMessageShape() {
+        RestTemplate client = new RestTemplate(new SimpleClientHttpRequestFactory());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(client).build();
+        OpenAiChatCompletionsAdapter adapter = new OpenAiChatCompletionsAdapter(client, new ObjectMapper(), 2 * 1024 * 1024);
+        AiProviderConfig config = AiProviderConfig.textProvider(1L, "Qwen Vision", "QWEN", "https://example.cn/v1", "qwen-vl-max");
+        config.setSupportsVision(true);
+        server.expect(once(), requestTo("https://example.cn/v1/chat/completions"))
+                .andExpect(header("Authorization", "Bearer vision-key"))
+                .andExpect(jsonPath("$.model").value("qwen-vl-max"))
+                .andExpect(jsonPath("$.temperature").value(0.2))
+                .andExpect(jsonPath("$.max_tokens").value(512))
+                .andExpect(jsonPath("$.messages.length()").value(1))
+                .andExpect(jsonPath("$.messages[0].role").value("user"))
+                .andExpect(jsonPath("$.messages[0].content.length()").value(2))
+                .andExpect(jsonPath("$.messages[0].content[0].type").value("text"))
+                .andExpect(jsonPath("$.messages[0].content[0].text").value("Describe this page as JSON."))
+                .andExpect(jsonPath("$.messages[0].content[1].type").value("image_url"))
+                .andExpect(jsonPath("$.messages[0].content[1].image_url.url").value("data:image/png;base64,AQIDBA=="))
+                .andRespond(withSuccess("{\"choices\":[{\"message\":{\"content\":\"{\\\"description\\\":\\\"page\\\"}\"}}]}", MediaType.APPLICATION_JSON));
+        ProviderResponse response = adapter.vision(config, "vision-key",
+                new VisionCompletionRequest("Describe this page as JSON.", new byte[]{1, 2, 3, 4}, "image/png", 512));
+        assertEquals("{\"description\":\"page\"}", response.getContent());
+        server.verify();
+    }
+
     @Test void postsCompatibleChatRequestAndReadsTheFirstChoice() {
         RestTemplate client = new RestTemplate(new SimpleClientHttpRequestFactory());
         MockRestServiceServer server = MockRestServiceServer.bindTo(client).build();

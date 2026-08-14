@@ -129,3 +129,18 @@ CREATE TABLE IF NOT EXISTS ai_routing_config (
   user_id BIGINT PRIMARY KEY, default_text_provider_id BIGINT, default_vision_provider_id BIGINT,
   daily_limit INT NOT NULL DEFAULT 50, max_output_tokens INT NOT NULL DEFAULT 1024, updated_at TIMESTAMP NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS ai_vision_cache (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  document_id BIGINT NOT NULL,
+  content_sha256 CHAR(64) NOT NULL,
+  provider_id BIGINT NOT NULL,
+  model VARCHAR(120) NOT NULL,
+  prompt_version VARCHAR(40) NOT NULL,
+  observation CLOB NOT NULL,
+  created_at TIMESTAMP NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  CONSTRAINT uk_ai_vision_cache UNIQUE (user_id, content_sha256, provider_id, model, prompt_version)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_vision_cache_owner_expiry ON ai_vision_cache(user_id, expires_at);

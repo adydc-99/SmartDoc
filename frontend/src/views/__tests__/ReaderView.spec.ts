@@ -14,10 +14,14 @@ const studyApi = vi.hoisted(() => ({
     { value: 'SUMMARIZE', label: '总结选区' }, { value: 'EXPLAIN_CODE', label: '解释代码' },
   ],
 }))
+const providersApi = vi.hoisted(() => ({
+  getVisualProviderState: vi.fn(), runVisionAction: vi.fn(),
+}))
 const routeLeave = vi.hoisted(() => ({ callback: undefined as undefined | (() => void) }))
 
 vi.mock('../../api/reader', () => readerApi)
 vi.mock('../../api/study', () => studyApi)
+vi.mock('../../api/providers', () => providersApi)
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: '7' }, query: {} }),
   onBeforeRouteLeave: (callback: () => void) => { routeLeave.callback = callback },
@@ -30,6 +34,8 @@ describe('ReaderView', () => {
     readerApi.getReaderContent.mockResolvedValue({ type: 'text', language: 'text', content: 'Readable content' })
     readerApi.getProgress.mockResolvedValue({ pageNumber: 1, scrollRatio: 0.42, zoom: 1.25, updatedAt: '2026-08-12T12:00:00' })
     readerApi.listDocumentNotes.mockResolvedValue([]); readerApi.saveProgress.mockResolvedValue({})
+    providersApi.getVisualProviderState.mockResolvedValue({ visionProvider: null, textProvider: null })
+    providersApi.runVisionAction.mockResolvedValue({ action: 'DIRECT', observation: { description: '图表', ocrText: '文字', codeOrDiagram: 'A → B', uncertainties: [] }, visionModel: 'qwen-vl-max', visionCacheHit: false })
   })
 
   it('restores reading progress and retains the mobile note drawer action', async () => {
@@ -87,5 +93,61 @@ describe('ReaderView', () => {
     await wrapper.get('[data-test="mobile-notes-button"]').trigger('click'); await wrapper.findAll('.note-editor textarea')[1].setValue('PDF note')
     await wrapper.get('.note-editor .button.primary').trigger('click'); await flushPromises()
     expect(studyApi.createNote).toHaveBeenCalledWith(7, expect.objectContaining({ pageNumber: 2, contentMarkdown: 'PDF note' }))
+  })
+
+  it('shows visual controls only when owner backend state proves a configured visual provider and discloses exact selected models', async () => {
+    const hidden = mount(ReaderView, { global: { stubs: { RouterLink: true, ReaderPdf: true } } })
+    await flushPromises(); await hidden.findAll('button').find(button => button.text() === 'AI')!.trigger('click')
+    expect(hidden.find('[data-test="vision-actions"]').exists()).toBe(false)
+    hidden.unmount()
+
+    providersApi.getVisualProviderState.mockResolvedValue({
+      visionProvider: { id: 11, model: 'qwen-vl-max' }, textProvider: { id: 12, model: 'deepseek-chat' },
+    })
+    const wrapper = mount(ReaderView, { global: { stubs: { RouterLink: true, ReaderPdf: true } } })
+    await flushPromises(); await wrapper.findAll('button').find(button => button.text() === 'AI')!.trigger('click')
+    const controls=wrapper.get('[data-test="vision-actions"]')
+    expect(controls.text()).toContain('识别当前页/图片')
+    expect(controls.text()).toContain('视觉模型：qwen-vl-max')
+    await controls.get('[aria-label="视觉操作"]').setValue('DEEP_ANALYSIS')
+    expect(controls.text()).toContain('视觉识别后深度分析')
+    expect(controls.text()).toContain('文本模型：deepseek-chat')
+  })
+
+  it('submits transient screenshot and current action as FormData then clears blob and revokes preview URL on success', async () => {
+    providersApi.getVisualProviderState.mockResolvedValue({ visionProvider: { id: 11, model: 'qwen-vl-max' }, textProvider: { id: 12, model: 'deepseek-chat' } })
+    const createObjectURL=vi.spyOn(URL,'createObjectURL').mockReturnValue('blob:vision-preview')
+    const revokeObjectURL=vi.spyOn(URL,'revokeObjectURL').mockImplementation(()=>{})
+    const wrapper = mount(ReaderView, { global: { stubs: { RouterLink: true, ReaderPdf: true } } })
+    await flushPromises();await wrapper.findAll('button').find(button=>button.text()==='AI')!.trigger('click')
+    const image=new File(['png-bytes'],'page.png',{type:'image/png'})
+    await wrapper.get('[data-test="vision-paste-zone"]').trigger('paste',{clipboardData:{files:[image]}})
+    expect(createObjectURL).toHaveBeenCalledWith(image);expect(wrapper.get('[data-test="vision-preview"]').attributes('src')).toBe('blob:vision-preview')
+    await wrapper.get('[aria-label="视觉问题"]').setValue('解释这张图')
+    await wrapper.get('[data-test="run-vision"]').trigger('click');await flushPromises()
+    expect(providersApi.runVisionAction).toHaveBeenCalledWith(7,expect.any(FormData))
+    const form=providersApi.runVisionAction.mock.calls[0][1] as FormData
+    expect(form.get('action')).toBe('DIRECT');expect(form.get('question')).toBe('解释这张图');expect(form.get('screenshot')).toBe(image)
+    expect(wrapper.find('[data-test="vision-preview"]').exists()).toBe(false);expect(revokeObjectURL).toHaveBeenCalledWith('blob:vision-preview')
+    expect(wrapper.text()).toContain('视觉识别已完成')
+  })
+
+  it('clears transient screenshot and revokes every preview URL on failure, route navigation, and unmount', async () => {
+    providersApi.getVisualProviderState.mockResolvedValue({ visionProvider: { id: 11, model: 'qwen-vl-max' }, textProvider: { id: 12, model: 'deepseek-chat' } })
+    providersApi.runVisionAction.mockRejectedValueOnce(new Error('safe failure'))
+    vi.spyOn(URL,'createObjectURL').mockReturnValueOnce('blob:failure').mockReturnValueOnce('blob:navigation').mockReturnValueOnce('blob:unmount')
+    const revoke=vi.spyOn(URL,'revokeObjectURL').mockImplementation(()=>{})
+    const mountReader=async()=>{const wrapper=mount(ReaderView,{global:{stubs:{RouterLink:true,ReaderPdf:true}}});await flushPromises();await wrapper.findAll('button').find(button=>button.text()==='AI')!.trigger('click');return wrapper}
+
+    const failed=await mountReader();await failed.get('[data-test="vision-paste-zone"]').trigger('paste',{clipboardData:{files:[new File(['a'],'a.png',{type:'image/png'})]}})
+    await failed.get('[data-test="run-vision"]').trigger('click');await flushPromises()
+    expect(failed.find('[data-test="vision-preview"]').exists()).toBe(false);expect(failed.text()).toContain('视觉操作失败，请检查模型设置或稍后重试');failed.unmount()
+
+    const navigating=await mountReader();await navigating.get('[data-test="vision-paste-zone"]').trigger('paste',{clipboardData:{files:[new File(['b'],'b.png',{type:'image/png'})]}})
+    routeLeave.callback?.();await navigating.vm.$nextTick();expect(navigating.find('[data-test="vision-preview"]').exists()).toBe(false);navigating.unmount()
+
+    const unmounting=await mountReader();await unmounting.get('[data-test="vision-paste-zone"]').trigger('paste',{clipboardData:{files:[new File(['c'],'c.png',{type:'image/png'})]}})
+    unmounting.unmount()
+    expect(revoke).toHaveBeenCalledWith('blob:failure');expect(revoke).toHaveBeenCalledWith('blob:navigation');expect(revoke).toHaveBeenCalledWith('blob:unmount')
   })
 })
