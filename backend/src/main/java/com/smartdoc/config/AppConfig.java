@@ -17,6 +17,8 @@ import io.minio.MinioClient;
 import java.nio.file.Paths;
 import java.time.Clock;
 import org.springframework.core.env.Environment;
+import com.smartdoc.ai.provider.*;
+import java.util.*;
 
 @Configuration
 public class AppConfig {
@@ -48,4 +50,11 @@ public class AppConfig {
     @Bean DeepSeekClientFactory deepSeekClientFactory(ObjectMapper json){return (settings,key)->{SimpleClientHttpRequestFactory factory=new SimpleClientHttpRequestFactory();factory.setConnectTimeout(5000);factory.setReadTimeout(30000);return new OpenAiCompatibleClient(new RestTemplate(factory),json,settings.getBaseUrl(),key,settings.getModel(),settings.getMaxOutputTokens());};}
     @Bean DemoAiClient demoAiClient(){return new DemoAiClient();}
     @Bean @Primary RoutingAiClient aiClient(AiSettingsService settings,DailyAiQuota quota,DemoAiClient demo,DeepSeekClientFactory factory){return new RoutingAiClient(settings,quota,demo,factory);}
+    @Bean ProviderUrlPolicy providerUrlPolicy(@Value("${smartdoc.ai.allow-loopback:false}") boolean loopback,@Value("${smartdoc.ai.allow-private-network:false}") boolean privateNetwork){return new ProviderUrlPolicy(loopback,privateNetwork);}
+    @Bean ProviderSecretVault providerSecretVault(AiProviderMapper mapper,@Value("${smartdoc.ai.master-key-base64:}") String master){return new ProviderSecretVault(mapper,master==null||master.trim().isEmpty()?Optional.empty():Optional.of(AesGcmSecretCipher.fromBase64(master)));}
+    @Bean RestTemplate providerRestTemplate(){SimpleClientHttpRequestFactory factory=new SimpleClientHttpRequestFactory(){@Override protected void prepareConnection(java.net.HttpURLConnection c,String method)throws java.io.IOException{super.prepareConnection(c,method);c.setInstanceFollowRedirects(false);}};factory.setConnectTimeout(5000);factory.setReadTimeout(30000);return new RestTemplate(factory);}
+    @Bean OpenAiChatCompletionsAdapter openAiChatCompletionsAdapter(RestTemplate providerRestTemplate,ObjectMapper json){return new OpenAiChatCompletionsAdapter(providerRestTemplate,json,2*1024*1024);}
+    @Bean ProviderAdapterRegistry providerAdapterRegistry(OpenAiChatCompletionsAdapter adapter){return new ProviderAdapterRegistry(List.of(adapter));}
+    @Bean ModelRouter modelRouter(AiProviderMapper p,AiRoutingMapper r,ProviderSecretVault v,ProviderAdapterRegistry a){return new ModelRouter(p,r,v,a);}
+    @Bean AiProviderService aiProviderService(AiProviderMapper p,AiRoutingMapper r,ProviderSecretVault v,ProviderUrlPolicy u,ModelRouter m,DailyAiQuota q){return new AiProviderService(p,r,v,u,m,q);}
 }

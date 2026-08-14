@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 @EnableAsync
-@MapperScan("com.smartdoc.**.mapper")
+@MapperScan({"com.smartdoc.**.mapper", "com.smartdoc.ai.provider"})
 @SpringBootApplication
 public class SmartDocApplication {
     public static void main(String[] args) {

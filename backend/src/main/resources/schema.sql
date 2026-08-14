@@ -116,3 +116,16 @@ CREATE TABLE IF NOT EXISTS question_history (
 CREATE INDEX IF NOT EXISTS idx_question_document_user ON question_history(document_id, user_id, created_at);
 
 -- DELETING is a document status value used as a transactional deletion claim; no schema change is required.
+
+CREATE TABLE IF NOT EXISTS ai_provider_config (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, display_name VARCHAR(80) NOT NULL,
+  preset_code VARCHAR(40) NOT NULL, protocol VARCHAR(40) NOT NULL, base_url VARCHAR(500) NOT NULL,
+  model VARCHAR(120) NOT NULL, supports_text BOOLEAN NOT NULL DEFAULT TRUE, supports_vision BOOLEAN NOT NULL DEFAULT FALSE,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE, encrypted_api_key CLOB, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL,
+  CONSTRAINT uk_ai_provider_user_name UNIQUE (user_id, display_name)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_provider_user_enabled ON ai_provider_config(user_id, enabled);
+CREATE TABLE IF NOT EXISTS ai_routing_config (
+  user_id BIGINT PRIMARY KEY, default_text_provider_id BIGINT, default_vision_provider_id BIGINT,
+  daily_limit INT NOT NULL DEFAULT 50, max_output_tokens INT NOT NULL DEFAULT 1024, updated_at TIMESTAMP NOT NULL
+);

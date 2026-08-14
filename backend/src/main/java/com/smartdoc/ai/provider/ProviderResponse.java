@@ -1,0 +1,1 @@
+package com.smartdoc.ai.provider; public final class ProviderResponse { private final String content; public ProviderResponse(String value){content=value;} public String getContent(){return content;} }

@@ -1,0 +1,1 @@
+package com.smartdoc.ai.provider; public final class VisionCompletionRequest { private final String prompt; public VisionCompletionRequest(String prompt){this.prompt=prompt;} public String getPrompt(){return prompt;} }

@@ -1,0 +1,3 @@
+package com.smartdoc.ai.provider;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper; import org.apache.ibatis.annotations.*; import org.apache.ibatis.annotations.Mapper; import java.time.LocalDateTime;
+@Mapper public interface AiRoutingMapper extends BaseMapper<AiRoutingConfig> { @Select("SELECT * FROM ai_routing_config WHERE user_id=#{userId}") AiRoutingConfig selectOwned(@Param("userId")long userId); @Update("UPDATE ai_routing_config SET default_text_provider_id=#{r.defaultTextProviderId},default_vision_provider_id=#{r.defaultVisionProviderId},daily_limit=#{r.dailyLimit},max_output_tokens=#{r.maxOutputTokens},updated_at=#{r.updatedAt} WHERE user_id=#{r.userId}") int updateOwned(@Param("r")AiRoutingConfig r); }

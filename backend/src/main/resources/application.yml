@@ -36,5 +36,8 @@ smartdoc:
       bucket: ${MINIO_BUCKET:smartdoc}
   ai:
     api-key: ${AI_API_KEY:}
+    master-key-base64: ${SMARTDOC_AI_MASTER_KEY_BASE64:}
+    allow-loopback: ${SMARTDOC_AI_ALLOW_LOOPBACK:true}
+    allow-private-network: ${SMARTDOC_AI_ALLOW_PRIVATE_NETWORK:false}
     context-code-points: ${AI_CONTEXT_CODE_POINTS:24000}
     source-code-points: ${AI_SOURCE_CODE_POINTS:4000}

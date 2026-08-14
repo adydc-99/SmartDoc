@@ -1,0 +1,1 @@
+package com.smartdoc.ai.provider; public interface ProviderAdapter { AiProviderProtocol protocol(); ProviderResponse complete(AiProviderConfig config,String apiKey,TextCompletionRequest request); ProviderResponse vision(AiProviderConfig config,String apiKey,VisionCompletionRequest request); ProviderResponse probe(AiProviderConfig config,String apiKey); }
