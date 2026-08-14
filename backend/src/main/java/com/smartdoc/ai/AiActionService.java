@@ -35,12 +35,12 @@ public class AiActionService {
    if(action==AiAction.CURRENT_PAGE_SUMMARY&&!validPage(document,request.getPageNumber()))throw new InvalidDocumentException("当前页码无效");
    if(SELECTED_ACTIONS.contains(action)&&request.getPageNumber()!=null&&!validPage(document,request.getPageNumber()))throw new InvalidDocumentException("选区页码无效");
    if(CODE_ACTIONS.contains(action)&&!"CODE".equals(document.getDocumentType())&&!looksLikeCode(selected))throw new InvalidDocumentException("该操作仅适用于代码文档或代码选区");
-   String mode=ai.mode().name(),model=ai.model();String key=hash(documentId+"|"+action+"|"+value(request.getPageNumber())+"|"+question+"|"+selected+"|"+mode+"|"+model);
+   AiMode selectedMode=ai.mode(userId);if(selectedMode==null)selectedMode=ai.mode();String mode=selectedMode.name();String model=ai.model(userId);if(model==null)model=ai.model();String providerIdentity=ai.providerIdentity(userId);if(providerIdentity==null)providerIdentity=mode+"|legacy|"+model;String key=hash(documentId+"|"+action+"|"+value(request.getPageNumber())+"|"+question+"|"+selected+"|"+providerIdentity);
    if(!request.isForce()){AiResultRecord cached=results.selectLatestByCacheKey(documentId,key);if(cached!=null)return response(cached,true);}
    List<DocumentChunkRecord> ordered=chunks.selectOwnedOrdered(userId,documentId);List<DocumentChunkRecord> relevant=action==AiAction.CURRENT_PAGE_SUMMARY?page(ordered,request.getPageNumber()):ordered;
    String context=SELECTED_ACTIONS.contains(action)?truncate(selectedOriginal,contextLimit):boundedContext(relevant,contextLimit);
    String source=SELECTED_ACTIONS.contains(action)?truncate(selectedOriginal,sourceLimit):truncate(exactText(relevant),sourceLimit);
-   String content=truncate(ai.complete(SYSTEM,prompt(action,question,context)),100_000);
+   String completion=ai.complete(userId,SYSTEM,prompt(action,question,context));if(completion==null)completion=ai.complete(SYSTEM,prompt(action,question,context));String content=truncate(completion,100_000);
    AiResultRecord row=new AiResultRecord();row.setDocumentId(documentId);row.setAction(action.name());row.setCacheKey(key);row.setSourcePage(action==AiAction.CURRENT_PAGE_SUMMARY||SELECTED_ACTIONS.contains(action)?request.getPageNumber():null);row.setSourceText(source);row.setContentMarkdown(content);row.setMode(mode);row.setModel(model);row.setCreatedAt(LocalDateTime.now());
    if(results.insert(row)!=1||row.getId()==null)throw new IllegalStateException("AI result insert failed");AiResultRecord stored=results.selectById(row.getId());if(stored==null)throw new IllegalStateException("AI result insert verification failed");return response(stored,false);
   }

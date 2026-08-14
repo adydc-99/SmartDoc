@@ -7,10 +7,45 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import com.smartdoc.ai.provider.*;
+import static org.mockito.Mockito.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class RoutingAiClientTest {
+    @Test
+    void userAwareCompletionUsesOwnedDefaultProviderOrOfflineDemoAndNeverFallsBackForMissingKey() {
+        DailyAiQuota quota = new DailyAiQuota(Clock.systemUTC());
+        AiSettingsService settings = new AiSettingsService(AiSettings.defaults(), "", unavailable(), quota);
+        AiProviderMapper providers = mock(AiProviderMapper.class);
+        AiRoutingMapper routes = mock(AiRoutingMapper.class);
+        ProviderSecretVault vault = new ProviderSecretVault(providers, Optional.empty());
+        ProviderAdapter adapter = new ProviderAdapter() {
+            public AiProviderProtocol protocol() { return AiProviderProtocol.OPENAI_CHAT_COMPLETIONS; }
+            public ProviderResponse complete(AiProviderConfig c, String key, TextCompletionRequest request) { return new ProviderResponse("provider-answer"); }
+            public ProviderResponse vision(AiProviderConfig c, String key, VisionCompletionRequest request) { throw new UnsupportedOperationException(); }
+            public ProviderResponse probe(AiProviderConfig c, String key) { return new ProviderResponse("OK"); }
+        };
+        ModelRouter router = new ModelRouter(providers, routes, vault, new ProviderAdapterRegistry(List.of(adapter)));
+        RoutingAiClient client = new RoutingAiClient(settings, quota, new DemoAiClient(), (snapshot, key) -> { throw new AssertionError(); }, router);
+
+        assertNotEquals("provider-answer", client.complete(41L, "system", "question"));
+        assertEquals(0, quota.used(41L));
+
+        AiProviderConfig configured = AiProviderConfig.textProvider(41L, "Mine", "CUSTOM", "https://example.cn/v1", "model-a");
+        configured.setId(7L);
+        AiRoutingConfig routing = new AiRoutingConfig(); routing.setDefaultTextProviderId(7L); routing.setDailyLimit(2); routing.setMaxOutputTokens(128);
+        when(routes.selectOwned(41L)).thenReturn(routing);
+        when(providers.selectOwnedEnabled(7L, 41L)).thenReturn(configured);
+        vault.save(41L, 7L, "sk-key", configured);
+        assertEquals("provider-answer", client.complete(41L, "system", "question"));
+        assertEquals(1, quota.used(41L));
+        assertEquals("OPENAI_CHAT_COMPLETIONS|7|model-a", client.providerIdentity(41L));
+
+        AiProviderConfig keyless = AiProviderConfig.textProvider(41L, "Keyless", "CUSTOM", "https://example.cn/v1", "model-b"); keyless.setId(8L);
+        routing.setDefaultTextProviderId(8L); when(providers.selectOwnedEnabled(8L, 41L)).thenReturn(keyless);
+        assertThrows(ProviderKeyMissingException.class, () -> client.complete(41L, "system", "question"));
+    }
     @Test
     void demoNeverUsesNetworkOrQuotaAndDeepseekUsesCurrentSettings() {
         DailyAiQuota quota = new DailyAiQuota(Clock.systemUTC());

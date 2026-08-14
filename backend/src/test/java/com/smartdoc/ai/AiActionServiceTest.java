@@ -35,10 +35,12 @@ class AiActionServiceTest {
         DocumentRecord document = readyDocument(41L, 7L, "PDF", 1);
         when(documents.selectOwnedForUpdate(41L, 7L)).thenReturn(document);
         when(chunks.selectOwnedOrdered(7L, 41L)).thenReturn(List.of(chunk(0, 1, "缓存正文")));
-        when(ai.mode()).thenReturn(AiMode.DEMO);
-        when(ai.model()).thenReturn("demo-model");
+        when(ai.mode(anyLong())).thenReturn(AiMode.DEMO);
+        when(ai.model(anyLong())).thenReturn("demo-model");
+        when(ai.providerIdentity(anyLong())).thenReturn("DEMO|demo|demo-model");
         AtomicInteger calls = new AtomicInteger();
         when(ai.complete(anyString(), anyString())).thenAnswer(invocation -> "回答-" + calls.incrementAndGet());
+        when(ai.complete(anyLong(), anyString(), anyString())).thenAnswer(invocation -> "answer-" + calls.incrementAndGet());
         List<AiResultRecord> stored = new ArrayList<>();
         when(results.selectLatestByCacheKey(eq(41L), anyString())).thenAnswer(invocation -> stored.stream()
                 .filter(row -> row.getCacheKey().equals(invocation.getArgument(1)))
@@ -120,23 +122,23 @@ class AiActionServiceTest {
         assertTrue(response.getContent().endsWith("😀"));
 
         Harness failed=new Harness("PDF",2,24_000,4_000);
-        when(failed.ai.complete(anyString(),anyString())).thenThrow(new IllegalStateException("safe request failure"));
+        when(failed.ai.complete(anyLong(),anyString(),anyString())).thenThrow(new IllegalStateException("safe request failure"));
         assertThrows(IllegalStateException.class,()->failed.execute(new AiActionRequest(AiAction.EXPLAIN,null,"confidential selected text",null,false)));
         verify(failed.results,never()).insert(any());
         assertEquals("READY",failed.document.getStatus());
-        doReturn("retry ok").when(failed.ai).complete(anyString(),anyString());
+        doReturn("retry ok").when(failed.ai).complete(anyLong(),anyString(),anyString());
         assertEquals("retry ok",failed.execute(new AiActionRequest(AiAction.EXPLAIN,null,"confidential selected text",null,false)).getContent());
     }
 
     @Test
     void concurrentIdenticalNonForcedRequestsMakeOneCallAndReuseDurableResult() throws Exception {
         Harness h=new Harness("PDF",2,24_000,4_000);CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
-        when(h.ai.complete(anyString(),anyString())).thenAnswer(call->{entered.countDown();assertTrue(release.await(2,TimeUnit.SECONDS));return "answer";});
+        when(h.ai.complete(anyLong(),anyString(),anyString())).thenAnswer(call->{entered.countDown();assertTrue(release.await(2,TimeUnit.SECONDS));return "answer";});
         ExecutorService pool=Executors.newFixedThreadPool(2);try{
             Callable<AiActionResponse> call=()->h.execute(new AiActionRequest(AiAction.ASK,"并发问题",null,null,false));
             Future<AiActionResponse> first=pool.submit(call);assertTrue(entered.await(2,TimeUnit.SECONDS));Future<AiActionResponse> second=pool.submit(call);
             Thread.sleep(80);release.countDown();AiActionResponse a=first.get(2,TimeUnit.SECONDS),b=second.get(2,TimeUnit.SECONDS);
-            assertEquals(a.getId(),b.getId());assertNotEquals(a.isCached(),b.isCached());verify(h.ai,times(1)).complete(anyString(),anyString());
+            assertEquals(a.getId(),b.getId());assertNotEquals(a.isCached(),b.isCached());verify(h.ai,times(1)).complete(anyLong(),anyString(),anyString());
         } finally {pool.shutdownNow();}
     }
 
@@ -144,9 +146,9 @@ class AiActionServiceTest {
     void insertMustBeReadableAndModeAndModelParticipateInCacheKey() {
         Harness h=new Harness("PDF",2,24_000,4_000);
         h.execute(new AiActionRequest(AiAction.ASK,"模式问题",null,null,false));
-        when(h.ai.mode()).thenReturn(AiMode.DEEPSEEK);when(h.ai.model()).thenReturn("deepseek-reasoner");
+        when(h.ai.mode(anyLong())).thenReturn(AiMode.DEEPSEEK);when(h.ai.model(anyLong())).thenReturn("deepseek-reasoner");when(h.ai.providerIdentity(anyLong())).thenReturn("OPENAI_CHAT_COMPLETIONS|7|deepseek-reasoner");
         AiActionResponse deep=h.execute(new AiActionRequest(AiAction.ASK,"模式问题",null,null,false));
-        assertEquals("DEEPSEEK",deep.getMode());verify(h.ai,times(2)).complete(anyString(),anyString());
+        assertEquals("DEEPSEEK",deep.getMode());verify(h.ai,times(2)).complete(anyLong(),anyString(),anyString());
 
         Harness missing=new Harness("PDF",2,24_000,4_000);when(missing.results.selectById(anyLong())).thenReturn(null);
         assertThrows(IllegalStateException.class,()->missing.execute(new AiActionRequest(AiAction.DOCUMENT_SUMMARY,null,null,null,false)));

@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AiActionIntegrationTest {
  @Autowired MockMvc mvc;@Autowired AuthTokenService tokens;@Autowired DocumentMapper documents;@Autowired JdbcTemplate jdbc;@MockBean AiClient ai;
  @Test void authenticatesPersistsAndReusesHttpActionWithoutSecondAiCall()throws Exception{
+  when(ai.mode(anyLong())).thenReturn(AiMode.DEMO);when(ai.model(anyLong())).thenReturn("demo");when(ai.providerIdentity(anyLong())).thenReturn("DEMO|demo|demo");when(ai.complete(anyLong(),anyString(),anyString())).thenReturn("# \u56de\u7b54");
   long id=document(7L,"READY");jdbc.update("INSERT INTO document_chunk(document_id,chunk_index,page_number,content) VALUES(?,0,1,'缓存正文')",id);
   when(ai.mode()).thenReturn(AiMode.DEMO);when(ai.model()).thenReturn("demo");when(ai.complete(anyString(),anyString())).thenReturn("# 回答");String auth="Bearer "+tokens.issue(7L,"owner");
   String request="{\"action\":\"ASK\",\"question\":\"缓存是什么？\",\"force\":false}";
@@ -30,8 +31,8 @@ class AiActionIntegrationTest {
     .andExpect(status().isOk()).andExpect(jsonPath("$.action").value("ASK")).andExpect(jsonPath("$.cached").value(false)).andExpect(jsonPath("$.source.documentId").value(id)).andExpect(jsonPath("$.content").value("# 回答"));
   mvc.perform(post("/api/documents/{id}/ai/actions",id).header("Authorization",auth).contentType("application/json").content(request))
     .andExpect(status().isOk()).andExpect(jsonPath("$.cached").value(true));
-  verify(ai,times(1)).complete(anyString(),anyString());assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM ai_result WHERE document_id=?",Integer.class,id));
-  doThrow(new IllegalStateException("sk-secret-sentinel confidential selected text")).when(ai).complete(anyString(),contains("confidential selected text"));
+  verify(ai,times(1)).complete(anyLong(),anyString(),anyString());assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM ai_result WHERE document_id=?",Integer.class,id));
+  doThrow(new IllegalStateException("sk-secret-sentinel confidential selected text")).when(ai).complete(anyLong(),anyString(),contains("confidential selected text"));
   String failure=mvc.perform(post("/api/documents/{id}/ai/actions",id).header("Authorization",auth).contentType("application/json").content("{\"action\":\"EXPLAIN\",\"selectedText\":\"confidential selected text\"}"))
     .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.message").exists()).andReturn().getResponse().getContentAsString();
   org.junit.jupiter.api.Assertions.assertFalse(failure.contains("sk-secret-sentinel"));org.junit.jupiter.api.Assertions.assertFalse(failure.contains("confidential selected text"));
