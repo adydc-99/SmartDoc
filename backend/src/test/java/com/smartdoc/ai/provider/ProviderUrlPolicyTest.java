@@ -19,4 +19,10 @@ class ProviderUrlPolicyTest {
         ProviderUrlPolicy policy = new ProviderUrlPolicy(true, false);
         assertEquals("http://127.0.0.1:8080/v1", policy.validateAndNormalize("http://127.0.0.1:8080/v1/"));
     }
+
+    @Test void rejectsIpv6UniqueLocalAddresses() {
+        ProviderUrlPolicy policy = new ProviderUrlPolicy(false, false);
+        assertThrows(IllegalArgumentException.class, () -> policy.validateAndNormalize("https://[fc00::1]/v1"));
+        assertThrows(IllegalArgumentException.class, () -> policy.validateAndNormalize("https://[fe80::1]/v1"));
+    }
 }

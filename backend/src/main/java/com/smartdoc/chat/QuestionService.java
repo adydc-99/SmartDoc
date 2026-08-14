@@ -25,7 +25,7 @@ public class QuestionService {
         DocumentRecord doc=documents.getForUpdate(userId,documentId); if(!"READY".equals(doc.getStatus())) throw new InvalidDocumentException("文档尚未解析完成");
         List<TextChunk> all=chunkMapper.selectList(new LambdaQueryWrapper<DocumentChunkRecord>().eq(DocumentChunkRecord::getDocumentId,documentId)
                 .orderByAsc(DocumentChunkRecord::getChunkIndex)).stream().map(r->new TextChunk(r.getChunkIndex(),r.getPageNumber(),r.getContent())).collect(Collectors.toList());
-        List<TextChunk> refs=retriever.retrieve(question,all,3); String answer=ai.answer(question,refs);
+        List<TextChunk> refs=retriever.retrieve(question,all,3); String answer=ai.answer(userId,question,refs);
         QuestionRecord row=new QuestionRecord(); row.setDocumentId(documentId);row.setUserId(userId);row.setQuestion(question);row.setAnswer(answer);
         row.setReferencesJson(json.writeValueAsString(refs));row.setCreatedAt(LocalDateTime.now());questions.insert(row);
         return new AnswerResponse(row.getId(),answer,refs,row.getCreatedAt());

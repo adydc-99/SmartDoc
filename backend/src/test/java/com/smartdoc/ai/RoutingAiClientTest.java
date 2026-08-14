@@ -19,6 +19,7 @@ class RoutingAiClientTest {
         AiSettingsService settings = new AiSettingsService(AiSettings.defaults(), "", unavailable(), quota);
         AiProviderMapper providers = mock(AiProviderMapper.class);
         AiRoutingMapper routes = mock(AiRoutingMapper.class);
+        when(providers.clearEncryptedKeyOwned(anyLong(), anyLong(), any())).thenReturn(1);
         ProviderSecretVault vault = new ProviderSecretVault(providers, Optional.empty());
         ProviderAdapter adapter = new ProviderAdapter() {
             public AiProviderProtocol protocol() { return AiProviderProtocol.OPENAI_CHAT_COMPLETIONS; }
@@ -45,6 +46,15 @@ class RoutingAiClientTest {
         AiProviderConfig keyless = AiProviderConfig.textProvider(41L, "Keyless", "CUSTOM", "https://example.cn/v1", "model-b"); keyless.setId(8L);
         routing.setDefaultTextProviderId(8L); when(providers.selectOwnedEnabled(8L, 41L)).thenReturn(keyless);
         assertThrows(ProviderKeyMissingException.class, () -> client.complete(41L, "system", "question"));
+    }
+
+    @Test void userAwareAnswerUsesTheSameProviderRoute() {
+        DailyAiQuota quota=new DailyAiQuota(Clock.systemUTC()); AiSettingsService settings=new AiSettingsService(AiSettings.defaults(),"",unavailable(),quota);
+        AiProviderMapper providers=mock(AiProviderMapper.class);AiRoutingMapper routes=mock(AiRoutingMapper.class);when(providers.clearEncryptedKeyOwned(anyLong(),anyLong(),any())).thenReturn(1);ProviderSecretVault vault=new ProviderSecretVault(providers,Optional.empty());
+        ProviderAdapter adapter=new ProviderAdapter(){public AiProviderProtocol protocol(){return AiProviderProtocol.OPENAI_CHAT_COMPLETIONS;}public ProviderResponse complete(AiProviderConfig c,String key,TextCompletionRequest request){return new ProviderResponse("routed answer");}public ProviderResponse vision(AiProviderConfig c,String key,VisionCompletionRequest r){throw new UnsupportedOperationException();}public ProviderResponse probe(AiProviderConfig c,String key){return new ProviderResponse("OK");}};
+        AiProviderConfig p=AiProviderConfig.textProvider(9,"mine","CUSTOM","https://example.cn/v1","m");p.setId(3L);AiRoutingConfig r=new AiRoutingConfig();r.setDefaultTextProviderId(3L);r.setDailyLimit(2);r.setMaxOutputTokens(128);when(routes.selectOwned(9)).thenReturn(r);when(providers.selectOwnedEnabled(3,9)).thenReturn(p);vault.save(9,3,"key",p);
+        RoutingAiClient client=new RoutingAiClient(settings,quota,new DemoAiClient(),(x,y)->{throw new AssertionError();},new ModelRouter(providers,routes,vault,new ProviderAdapterRegistry(List.of(adapter))));
+        assertEquals("routed answer",client.answer(9,"what",List.of(new TextChunk(0,1,"evidence")))); assertEquals(1,quota.used(9));
     }
     @Test
     void demoNeverUsesNetworkOrQuotaAndDeepseekUsesCurrentSettings() {

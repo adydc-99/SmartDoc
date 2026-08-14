@@ -3,6 +3,7 @@ package com.smartdoc.ai;
 import com.smartdoc.document.TextChunk;
 import com.smartdoc.ai.provider.*;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class RoutingAiClient implements AiClient {
     private final AiSettingsService settings; private final DailyAiQuota quota; private final DemoAiClient demo; private final DeepSeekClientFactory factory; private final ModelRouter providers;
@@ -15,8 +16,11 @@ public class RoutingAiClient implements AiClient {
     public String model(){return settings.current().getModel();}
     public AiTestResult test(){AiSettings s=settings.current();long start=System.nanoTime();if(s.getMode()==AiMode.DEMO)return new AiTestResult((System.nanoTime()-start)/1_000_000,s.getModel(),s.getMode());network().probe();return new AiTestResult((System.nanoTime()-start)/1_000_000,s.getModel(),s.getMode());}
     public String complete(long userId,String systemInstruction,String userPrompt){if(providers==null)return complete(systemInstruction,userPrompt);if(!providers.hasConfiguredDefault(userId,ProviderCapability.TEXT))return demo.complete(systemInstruction,userPrompt);ProviderSession session=providers.require(userId,ProviderCapability.TEXT);AiRoutingConfig routing=providers.routingFor(userId);quota.consume(userId,routing.getDailyLimit());return session.getAdapter().complete(session.getProvider(),session.getApiKey(),new TextCompletionRequest(systemInstruction,userPrompt,routing.getMaxOutputTokens())).getContent();}
+    public AiSummary summarize(long userId,String text){if(providers==null)return summarize(text);if(!providers.hasConfiguredDefault(userId,ProviderCapability.TEXT))return demo.summarize(text);return new AiSummary(text(userId,"Summarize the supplied document concisely.",text),List.of());}
+    public String answer(long userId,String question,List<TextChunk> references){if(providers==null)return answer(question,references);if(!providers.hasConfiguredDefault(userId,ProviderCapability.TEXT))return demo.answer(question,references);String evidence=references.stream().map(r->"[page "+r.getPageNumber()+"] "+r.getContent()).collect(Collectors.joining("\n\n"));return text(userId,"Answer only from the supplied document context and cite pages.","Question: "+question+"\nContext:\n"+evidence);}
     public AiMode mode(long userId){return providers!=null&&providers.hasConfiguredDefault(userId,ProviderCapability.TEXT)?AiMode.DEEPSEEK:AiMode.DEMO;}
     public String model(long userId){if(providers==null||!providers.hasConfiguredDefault(userId,ProviderCapability.TEXT))return "demo";return providers.require(userId,ProviderCapability.TEXT).getProvider().getModel();}
     public String providerIdentity(long userId){if(providers==null||!providers.hasConfiguredDefault(userId,ProviderCapability.TEXT))return "DEMO|demo|demo";AiProviderConfig p=providers.require(userId,ProviderCapability.TEXT).getProvider();return p.getProtocol()+"|"+p.getId()+"|"+p.getModel();}
+    private String text(long userId,String system,String prompt){ProviderSession session=providers.require(userId,ProviderCapability.TEXT);AiRoutingConfig routing=providers.routingFor(userId);quota.consume(userId,routing.getDailyLimit());return session.getAdapter().complete(session.getProvider(),session.getApiKey(),new TextCompletionRequest(system,prompt,routing.getMaxOutputTokens())).getContent();}
     private NetworkAiClient network(){AiSettings s=settings.current();String key=settings.currentKey().orElseThrow(()->new IllegalStateException("DeepSeek API key is not configured"));quota.consume(s.getDailyLimit());return factory.create(s,key);}
 }

@@ -13,4 +13,6 @@ public interface AiClient {
     default AiMode mode(long userId) { return mode(); }
     default String model(long userId) { return model(); }
     default String providerIdentity(long userId) { return mode(userId).name() + "|legacy|" + model(userId); }
+    default AiSummary summarize(long userId, String text) { return summarize(text); }
+    default String answer(long userId, String question, List<TextChunk> references) { return answer(question, references); }
 }
