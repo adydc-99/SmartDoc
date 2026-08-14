@@ -35,7 +35,7 @@ class DocumentDeletionRaceIntegrationTest {
 
  @Test void questionHoldingDocumentRowCommitsBeforeDeleteAndHistoryIsThenRemoved()throws Exception{
   long id=document("READY","PDF");jdbc.update("INSERT INTO document_chunk(document_id,chunk_index,page_number,content) VALUES(?,0,1,'G1 collector')",id);
-  CountDownLatch asked=new CountDownLatch(1),release=new CountDownLatch(1);when(ai.answer(anyString(),anyList())).thenAnswer(call->{asked.countDown();assertTrue(release.await(2,TimeUnit.SECONDS));return "answer";});
+  CountDownLatch asked=new CountDownLatch(1),release=new CountDownLatch(1);when(ai.answer(eq(7L),anyString(),anyList())).thenAnswer(call->{asked.countDown();assertTrue(release.await(2,TimeUnit.SECONDS));return "answer";});
   ExecutorService pool=Executors.newFixedThreadPool(2);try{Future<?> question=pool.submit(()->ask(id));assertTrue(asked.await(2,TimeUnit.SECONDS));Future<?> deletion=pool.submit(()->delete(id));Thread.sleep(100);assertFalse(deletion.isDone(),"delete must wait for question DB row lock");release.countDown();question.get(3,TimeUnit.SECONDS);deletion.get(3,TimeUnit.SECONDS);}finally{pool.shutdownNow();}
   assertEquals(0,count("document_record",id));assertEquals(0,count("question_history",id));
  }
