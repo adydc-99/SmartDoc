@@ -1,6 +1,8 @@
 package com.smartdoc.common;
 
 import com.smartdoc.document.*;
+import com.smartdoc.ai.provider.ProviderHttpException;
+import com.smartdoc.ai.provider.ProviderKeyMissingException;
 import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -21,6 +23,10 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String,String>> responseStatus(ResponseStatusException e){
         return ResponseEntity.status(e.getStatus()).body(Map.of("message",e.getReason()==null?"请求失败":e.getReason()));
     }
+    @ExceptionHandler(ProviderHttpException.class)
+    public ResponseEntity<Map<String,String>> provider(ProviderHttpException e){return ResponseEntity.status(e.getStatus()).body(Map.of("code",e.getCode(),"message","AI provider request failed"));}
+    @ExceptionHandler(ProviderKeyMissingException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST) public Map<String,String> missingProviderKey(ProviderKeyMissingException e){return Map.of("code","PROVIDER_KEY_MISSING","message","AI provider key is not configured");}
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR) public Map<String,String> other(Exception e){return Map.of("message","服务暂时不可用");}
 }

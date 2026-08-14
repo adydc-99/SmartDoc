@@ -3,6 +3,7 @@ package com.smartdoc.ai;
 import com.smartdoc.auth.AuthTokenService;
 import com.smartdoc.document.DocumentRecord;
 import com.smartdoc.document.mapper.DocumentMapper;
+import com.smartdoc.ai.provider.ProviderHttpException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -32,9 +33,9 @@ class AiActionIntegrationTest {
   mvc.perform(post("/api/documents/{id}/ai/actions",id).header("Authorization",auth).contentType("application/json").content(request))
     .andExpect(status().isOk()).andExpect(jsonPath("$.cached").value(true));
   verify(ai,times(1)).complete(anyLong(),anyString(),anyString());assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM ai_result WHERE document_id=?",Integer.class,id));
-  doThrow(new IllegalStateException("sk-secret-sentinel confidential selected text")).when(ai).complete(anyLong(),anyString(),contains("confidential selected text"));
+  doThrow(new ProviderHttpException("MODEL_NOT_CONFIGURED",400)).when(ai).complete(anyLong(),anyString(),contains("confidential selected text"));
   String failure=mvc.perform(post("/api/documents/{id}/ai/actions",id).header("Authorization",auth).contentType("application/json").content("{\"action\":\"EXPLAIN\",\"selectedText\":\"confidential selected text\"}"))
-    .andExpect(status().isInternalServerError()).andExpect(jsonPath("$.message").exists()).andReturn().getResponse().getContentAsString();
+    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("MODEL_NOT_CONFIGURED")).andExpect(jsonPath("$.message").exists()).andReturn().getResponse().getContentAsString();
   org.junit.jupiter.api.Assertions.assertFalse(failure.contains("sk-secret-sentinel"));org.junit.jupiter.api.Assertions.assertFalse(failure.contains("confidential selected text"));
   assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM ai_result WHERE document_id=?",Integer.class,id));
   mvc.perform(post("/api/documents/{id}/ai/actions",id).contentType("application/json").content(request)).andExpect(status().isUnauthorized());

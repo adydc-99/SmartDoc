@@ -42,7 +42,7 @@ class OpenAiChatCompletionsAdapterTest {
         RestTemplate client = new RestTemplate(); MockRestServiceServer server = MockRestServiceServer.bindTo(client).build();
         OpenAiChatCompletionsAdapter adapter = new OpenAiChatCompletionsAdapter(client, new ObjectMapper(), 16);
         AiProviderConfig config = AiProviderConfig.textProvider(1L, "Qwen", "QWEN", "https://example.cn/v1", "model");
-        server.expect(requestTo("https://example.cn/v1/chat/completions")).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).body("provider secret body"));
+        server.expect(requestTo("https://example.cn/v1/chat/completions")).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).body("x"));
         assertEquals("PROVIDER_RATE_LIMITED", assertThrows(ProviderHttpException.class, () -> adapter.complete(config, "key-secret", new TextCompletionRequest("", "q", 128))).getCode()); server.verify();
         server.reset(); server.expect(requestTo("https://example.cn/v1/chat/completions")).andRespond(withSuccess("x".repeat(17), MediaType.APPLICATION_JSON));
         assertEquals("RESPONSE_TOO_LARGE", assertThrows(ProviderHttpException.class, () -> adapter.complete(config, "key-secret", new TextCompletionRequest("", "q", 128))).getCode()); server.verify();
@@ -54,5 +54,10 @@ class OpenAiChatCompletionsAdapterTest {
         server.expect(requestTo("https://example.cn/v1/chat/completions")).andRespond(withStatus(HttpStatus.BAD_GATEWAY).body("upstream secret"));
         ProviderHttpException error=assertThrows(ProviderHttpException.class,()->adapter.complete(config,"key-secret",new TextCompletionRequest("","q",128)));
         assertEquals("PROVIDER_UNAVAILABLE",error.getCode());assertFalse(error.getMessage().contains("secret"));server.verify();
+    }
+    @Test void capsOversizedRateLimitBodyBeforeMappingItsStatus() {
+        RestTemplate client=new RestTemplate();MockRestServiceServer server=MockRestServiceServer.bindTo(client).build();OpenAiChatCompletionsAdapter adapter=new OpenAiChatCompletionsAdapter(client,new ObjectMapper(),16);AiProviderConfig config=AiProviderConfig.textProvider(1,"Qwen","QWEN","https://example.cn/v1","model");
+        server.expect(requestTo("https://example.cn/v1/chat/completions")).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).body("x".repeat(17)));
+        assertEquals("RESPONSE_TOO_LARGE",assertThrows(ProviderHttpException.class,()->adapter.complete(config,"key-secret",new TextCompletionRequest("","q",128))).getCode());server.verify();
     }
 }
