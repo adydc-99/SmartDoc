@@ -8,5 +8,15 @@ frontend/vite.config.d.ts
 .idea/
 .vscode/
 data/
+backend/data/
+frontend/data/
+mysql_data/
+minio_data/
+uploads/
+*.mv.db
+*.trace.db
 .env
+.env.*
+!.env.example
 *.log
+.DS_Store
