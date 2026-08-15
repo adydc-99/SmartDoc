@@ -49,7 +49,7 @@
 - Produces: `AiEvidenceSelector.Selection select(long documentId, List<DocumentChunkRecord> chunks, String question, int contextLimit)` with `getContext()` and `getSources()`.
 - Produces: `AiActionResponse.Source(long documentId, Integer pageNumber, Integer chunkIndex, String text, String relevance)`.
 
-- [ ] **Step 1: Write failing selector tests**
+- [x] **Step 1: Write failing selector tests**
 
 Add tests that call the wished-for selector directly:
 
@@ -77,7 +77,7 @@ Add tests that call the wished-for selector directly:
 }
 ```
 
-- [ ] **Step 2: Run selector tests and verify RED**
+- [x] **Step 2: Run selector tests and verify RED**
 
 Run:
 
@@ -88,7 +88,7 @@ mvn -q -Dtest=AiActionServiceTest test
 
 Expected: test compilation fails because `AiEvidenceSelector`, `Selection`, expanded `Source`, and `getSources()` do not exist.
 
-- [ ] **Step 3: Implement response additions and minimal selector**
+- [x] **Step 3: Implement response additions and minimal selector**
 
 `AiActionResponse` keeps `getSource()` and adds:
 
@@ -112,7 +112,7 @@ public static class Source {
 
 Implement `tokens(question)` with lowercase English `[a-z0-9]+` terms of at least 2 code points and overlapping two-character grams for contiguous Han text. Remove `the`, `and`, `how`, `what`, `why`, `的`, `了`, `是`, `什么`, `为什么`, and `如何`. Score each candidate as `8` for one normalized full-question occurrence plus `min(3, occurrences) * (2 + tokenCodePoints)` per unique token. Sort by score descending, then null-safe page and chunk index ascending. When any candidate has a positive score, discard zero-score candidates; otherwise fall back to document order. Treat equal normalized text, or containment where the shorter text is at least 80% of the longer text, as duplicate. Use code-point-safe `truncate`. Mark positive candidates at least 60% of the top score as `HIGH`; all others are `RELATED`.
 
-- [ ] **Step 4: Run selector tests and verify GREEN**
+- [x] **Step 4: Run selector tests and verify GREEN**
 
 Run `mvn -q -Dtest=AiActionServiceTest test` from `backend`.
 

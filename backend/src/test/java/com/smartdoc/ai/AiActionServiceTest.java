@@ -27,6 +27,33 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class AiActionServiceTest {
     @Test
+    void askEvidenceRanksChineseAndEnglishMatchesDeduplicatesAndCapsAtEight() {
+        List<DocumentChunkRecord> rows = new ArrayList<>();
+        rows.add(chunk(0, 1, "Redis 缓存通过 TTL 控制过期。"));
+        rows.add(chunk(1, 1, "Redis 缓存通过 TTL 控制过期。"));
+        rows.add(chunk(2, 2, "Cache eviction uses an LRU policy."));
+        for (int i = 3; i < 12; i++) rows.add(chunk(i, i, "缓存策略证据 " + i));
+
+        AiEvidenceSelector.Selection selected = new AiEvidenceSelector(8, 120)
+                .select(41L, rows, "Redis 缓存为什么会过期？", 24_000);
+
+        assertEquals(8, selected.getSources().size());
+        assertEquals(0, selected.getSources().get(0).getChunkIndex());
+        assertEquals("HIGH", selected.getSources().get(0).getRelevance());
+        assertEquals(1, selected.getSources().stream().filter(source -> source.getText().contains("TTL")).count());
+        assertTrue(selected.getContext().contains("TTL"));
+    }
+
+    @Test
+    void evidenceOnlyReturnsSourcesActuallyIncludedByTheUnicodeContextLimit() {
+        AiEvidenceSelector.Selection selected = new AiEvidenceSelector(8, 120)
+                .select(41L, List.of(chunk(0, 1, "😀相关证据"), chunk(1, 2, "不应发送")), "相关", 24);
+
+        assertEquals(1, selected.getSources().size());
+        assertFalse(selected.getContext().contains("不应发送"));
+    }
+
+    @Test
     void reusesNormalizedCacheWithoutCallingAiAndForceCreatesFreshResult() {
         DocumentMapper documents = mock(DocumentMapper.class);
         DocumentChunkMapper chunks = mock(DocumentChunkMapper.class);
