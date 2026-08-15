@@ -112,6 +112,7 @@ describe('ReaderView', () => {
     await controls.get('[aria-label="视觉操作"]').setValue('DEEP_ANALYSIS')
     expect(controls.text()).toContain('视觉识别后深度分析')
     expect(controls.text()).toContain('文本模型：deepseek-chat')
+    expect(controls.get('input[type="file"]').attributes('accept')).toContain('image/webp')
   })
 
   it('submits transient screenshot and current action as FormData then clears blob and revokes preview URL on success', async () => {
@@ -120,12 +121,15 @@ describe('ReaderView', () => {
     const revokeObjectURL=vi.spyOn(URL,'revokeObjectURL').mockImplementation(()=>{})
     const wrapper = mount(ReaderView, { global: { stubs: { RouterLink: true, ReaderPdf: true } } })
     await flushPromises();await wrapper.findAll('button').find(button=>button.text()==='AI')!.trigger('click')
+    const fileInput=wrapper.get('input[type="file"]')
+    Object.defineProperty(fileInput.element,'value',{value:'C:\\fakepath\\page.png',writable:true,configurable:true})
     const image=new File(['png-bytes'],'page.png',{type:'image/png'})
     await wrapper.get('[data-test="vision-paste-zone"]').trigger('paste',{clipboardData:{files:[image]}})
     expect(createObjectURL).toHaveBeenCalledWith(image);expect(wrapper.get('[data-test="vision-preview"]').attributes('src')).toBe('blob:vision-preview')
     await wrapper.get('[aria-label="视觉问题"]').setValue('解释这张图')
     await wrapper.get('[data-test="run-vision"]').trigger('click');await flushPromises()
     expect(providersApi.runVisionAction).toHaveBeenCalledWith(7,expect.any(FormData))
+    expect((fileInput.element as HTMLInputElement).value).toBe('')
     const form=providersApi.runVisionAction.mock.calls[0][1] as FormData
     expect(form.get('action')).toBe('DIRECT');expect(form.get('question')).toBe('解释这张图');expect(form.get('screenshot')).toBe(image)
     expect(wrapper.find('[data-test="vision-preview"]').exists()).toBe(false);expect(revokeObjectURL).toHaveBeenCalledWith('blob:vision-preview')

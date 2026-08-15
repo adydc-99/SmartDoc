@@ -2,6 +2,7 @@ package com.smartdoc.ai.vision;
 
 import com.smartdoc.document.InvalidDocumentException;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.rendering.*;
 import org.springframework.stereotype.Component;
 
@@ -11,16 +12,21 @@ import java.io.*;
 
 @Component
 public class PdfPageImageRenderer {
-    static final int MAX_ENCODED_BYTES=8*1024*1024; static final long MAX_PIXELS=16_000_000L;
+    static final int MAX_ENCODED_BYTES=8*1024*1024; static final long MAX_PIXELS=16_000_000L;private static final double RENDER_SCALE=144d/72d;
     public NormalizedImage render(InputStream source,int pageNumber)throws IOException{
         try(PDDocument document=PDDocument.load(source)){
             if(pageNumber<1||pageNumber>document.getNumberOfPages())throw new InvalidDocumentException("当前页码无效");
-            org.apache.pdfbox.pdmodel.common.PDRectangle box=document.getPage(pageNumber-1).getCropBox();
-            long width=(long)Math.ceil(box.getWidth()*2),height=(long)Math.ceil(box.getHeight()*2);
-            if(width<=0||height<=0||width*height>MAX_PIXELS)throw new InvalidDocumentException("当前页图像尺寸过大");
+            validateCropBox(document.getPage(pageNumber-1).getCropBox());
             BufferedImage image=new PDFRenderer(document).renderImageWithDPI(pageNumber-1,144,ImageType.RGB);
             try{return encodePng(image);}finally{image.flush();}
         }
+    }
+    static void validateCropBox(PDRectangle box){
+        if(box==null||!Float.isFinite(box.getWidth())||!Float.isFinite(box.getHeight())||box.getWidth()<=0||box.getHeight()<=0)throw new InvalidDocumentException("当前页图像尺寸无效");
+        double scaledWidth=Math.ceil(box.getWidth()*RENDER_SCALE),scaledHeight=Math.ceil(box.getHeight()*RENDER_SCALE);
+        if(!Double.isFinite(scaledWidth)||!Double.isFinite(scaledHeight)||scaledWidth>Long.MAX_VALUE||scaledHeight>Long.MAX_VALUE)throw new InvalidDocumentException("当前页图像尺寸过大");
+        long width=(long)scaledWidth,height=(long)scaledHeight;
+        if(width<=0||height<=0||height>MAX_PIXELS||width>MAX_PIXELS/height)throw new InvalidDocumentException("当前页图像尺寸过大");
     }
     static NormalizedImage encodePng(BufferedImage image)throws IOException{
         if((long)image.getWidth()*image.getHeight()>MAX_PIXELS)throw new InvalidDocumentException("图像像素数超过限制");
