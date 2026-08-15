@@ -9,7 +9,8 @@ export const AI_ACTION_OPTIONS=[
  {value:'SUMMARIZE',label:'总结选区'},
  {value:'EXPLAIN_CODE',label:'解释代码'},
 ] as const satisfies readonly {value:AiAction;label:string}[]
-export interface AiResult{id:number;action:AiAction;content:string;mode:string;cached:boolean;createdAt:string;source:{documentId:number;pageNumber:number|null;text:string}}
+export interface AiSource{documentId:number;pageNumber:number|null;chunkIndex:number|null;text:string;relevance:'HIGH'|'RELATED'}
+export interface AiResult{id:number;action:AiAction;content:string;mode:string;cached:boolean;createdAt:string;source:AiSource;sources?:AiSource[]}
 export interface AiSettings{mode:'DEMO'|'DEEPSEEK';baseUrl:string;model:string;maskedKey:string;keyConfigured:boolean;persistenceAvailable:boolean;persistKey:boolean;maxOutputTokens:number;dailyLimit:number;todayUsed:number}
 export const searchNotes=(params:Record<string,unknown>)=>(api.get<Note[]>('/notes',{params})).then(r=>r.data)
 export const createNote=(id:number,value:unknown)=>(api.post<Note>(`/documents/${id}/notes`,value)).then(r=>r.data)

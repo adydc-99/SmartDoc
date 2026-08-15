@@ -71,8 +71,62 @@ describe('ReaderView', () => {
     await wrapper.findAll('button').find(button => button.text() === 'AI')!.trigger('click')
     await wrapper.get('.reader-ai select').setValue('CURRENT_PAGE_SUMMARY'); await wrapper.get('.reader-ai .button.primary').trigger('click'); await flushPromises()
     expect(studyApi.runAi).toHaveBeenLastCalledWith(7, expect.objectContaining({ action: 'CURRENT_PAGE_SUMMARY', force: false }))
-    await wrapper.findAll('.ai-answer button').find(button => button.text() === '强制重新生成')!.trigger('click'); await flushPromises()
+    await wrapper.get('[data-test="regenerate-answer"]').trigger('click'); await flushPromises()
     expect(studyApi.runAi).toHaveBeenLastCalledWith(7, expect.objectContaining({ force: true }))
+  })
+
+  it('keeps AI loading and failure feedback visible in the drawer', async () => {
+    let rejectRequest:(reason?:unknown)=>void=()=>{}
+    studyApi.runAi.mockImplementation(()=>new Promise((_,reject)=>{rejectRequest=reject}))
+    const wrapper=mount(ReaderView,{global:{stubs:{RouterLink:true,ReaderPdf:true}}})
+    await flushPromises();await wrapper.findAll('button').find(button=>button.text()==='AI')!.trigger('click')
+    await wrapper.get('[data-test="run-ai"]').trigger('click')
+    expect(wrapper.get('[data-test="ai-loading"]').attributes('role')).toBe('status')
+    rejectRequest(new Error('safe failure'));await flushPromises()
+    expect(wrapper.get('[data-test="ai-error"]').attributes('role')).toBe('alert')
+    expect(wrapper.get('[data-test="ai-error"]').text()).toContain('AI 操作失败')
+  })
+
+  it('jumps to a cited PDF page and persists the new reading position', async () => {
+    readerApi.getReaderDocument.mockResolvedValue({id:7,name:'guide.pdf',documentType:'PDF',pageCount:5,status:'READY'})
+    readerApi.getReaderContent.mockResolvedValue(new Blob(['pdf']))
+    studyApi.runAi.mockResolvedValue({id:2,action:'ASK',content:'answer',mode:'DEMO',cached:false,createdAt:'now',source:{documentId:7,pageNumber:3,chunkIndex:2,text:'evidence',relevance:'HIGH'},sources:[{documentId:7,pageNumber:3,chunkIndex:2,text:'evidence',relevance:'HIGH'}]})
+    const wrapper=mount(ReaderView,{global:{stubs:{RouterLink:true,ReaderPdf:{template:'<div class="pdf-stub"/>',props:['blob','page','zoom']}}}})
+    await flushPromises();await wrapper.findAll('button').find(button=>button.text()==='AI')!.trigger('click')
+    await wrapper.get('[data-test="run-ai"]').trigger('click');await flushPromises()
+    await wrapper.get('[data-test="citation-card"]').trigger('click');await flushPromises()
+    expect(readerApi.saveProgress).toHaveBeenLastCalledWith(7,expect.objectContaining({pageNumber:3}))
+  })
+
+  it('locates and temporarily highlights cited text in a text document', async () => {
+    studyApi.runAi.mockResolvedValue({id:3,action:'ASK',content:'answer',mode:'DEMO',cached:false,createdAt:'now',source:{documentId:7,pageNumber:null,chunkIndex:0,text:'Readable content',relevance:'HIGH'},sources:[{documentId:7,pageNumber:null,chunkIndex:0,text:'Readable content',relevance:'HIGH'}]})
+    const wrapper=mount(ReaderView,{global:{stubs:{RouterLink:true,ReaderPdf:true}}})
+    await flushPromises();await wrapper.findAll('button').find(button=>button.text()==='AI')!.trigger('click')
+    await wrapper.get('[data-test="run-ai"]').trigger('click');await flushPromises()
+    await wrapper.get('[data-test="citation-card"]').trigger('click');await flushPromises()
+    expect(wrapper.get('[data-source-highlight]').text()).toBe('Readable content')
+    expect(wrapper.get('[data-test="reader-status"]').text()).toContain('已定位来源')
+  })
+
+  it('reports an honest fallback when cited text cannot be found', async () => {
+    studyApi.runAi.mockResolvedValue({id:4,action:'ASK',content:'answer',mode:'DEMO',cached:false,createdAt:'now',source:{documentId:7,pageNumber:null,chunkIndex:4,text:'Missing excerpt',relevance:'RELATED'}})
+    const wrapper=mount(ReaderView,{global:{stubs:{RouterLink:true,ReaderPdf:true}}})
+    await flushPromises();await wrapper.findAll('button').find(button=>button.text()==='AI')!.trigger('click')
+    await wrapper.get('[data-test="run-ai"]').trigger('click');await flushPromises()
+    await wrapper.get('[data-test="citation-card"]').trigger('click');await flushPromises()
+    expect(wrapper.find('[data-source-highlight]').exists()).toBe(false)
+    expect(wrapper.get('[data-test="reader-status"]').text()).toContain('未能精确定位')
+  })
+
+  it('locates a Markdown citation after formatting markers are rendered away', async () => {
+    readerApi.getReaderDocument.mockResolvedValue({id:7,name:'guide.md',documentType:'MARKDOWN',pageCount:null,status:'READY'})
+    readerApi.getReaderContent.mockResolvedValue({type:'text',language:'markdown',content:'Intro **Readable content** end'})
+    studyApi.runAi.mockResolvedValue({id:5,action:'ASK',content:'answer',mode:'DEMO',cached:false,createdAt:'now',source:{documentId:7,pageNumber:null,chunkIndex:0,text:'**Readable content**',relevance:'HIGH'}})
+    const wrapper=mount(ReaderView,{global:{stubs:{RouterLink:true,ReaderPdf:true}}})
+    await flushPromises();await wrapper.findAll('button').find(button=>button.text()==='AI')!.trigger('click')
+    await wrapper.get('[data-test="run-ai"]').trigger('click');await flushPromises()
+    await wrapper.get('[data-test="citation-card"]').trigger('click');await flushPromises()
+    expect(wrapper.get('[data-source-highlight]').text()).toBe('Readable content')
   })
 
   it('sends page 1 when creating a note for a text document', async () => {

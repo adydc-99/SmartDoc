@@ -118,7 +118,7 @@ Run `mvn -q -Dtest=AiActionServiceTest test` from `backend`.
 
 Expected: selector tests pass and existing service tests compile after constructor call sites are adjusted only as required by the additive `Source` signature.
 
-- [ ] **Step 5: Commit Task 1**
+- [x] **Step 5: Commit Task 1**
 
 ```powershell
 git add backend/src/main/java/com/smartdoc/ai/AiEvidenceSelector.java backend/src/main/java/com/smartdoc/ai/AiActionResponse.java backend/src/test/java/com/smartdoc/ai/AiActionServiceTest.java
@@ -206,7 +206,7 @@ Run `mvn -q "-Dtest=AiActionServiceTest,AiActionIntegrationTest" test`.
 
 Expected: all focused tests pass; cached duplicate request invokes the model once.
 
-- [ ] **Step 5: Commit Task 2**
+- [x] **Step 5: Commit Task 2**
 
 ```powershell
 git add backend/src/main/java/com/smartdoc/ai/AiActionService.java backend/src/test/java/com/smartdoc/ai/AiActionServiceTest.java backend/src/test/java/com/smartdoc/ai/AiActionIntegrationTest.java
@@ -229,7 +229,7 @@ git commit -m "feat: return aligned answer citations"
 - Consumes: `AiResult.sources?: AiSource[]` with fallback to `[source]`.
 - Produces: emits `navigate(source: AiSource)` and `regenerate()`.
 
-- [ ] **Step 1: Write failing component tests**
+- [x] **Step 1: Write failing component tests**
 
 Create tests for safe Markdown, default source count, expansion, semantic controls, and events:
 
@@ -252,7 +252,7 @@ it('renders sanitized markdown and emits citation navigation', async () => {
 })
 ```
 
-- [ ] **Step 2: Run component tests and verify RED**
+- [x] **Step 2: Run component tests and verify RED**
 
 Run:
 
@@ -263,7 +263,7 @@ pnpm test -- src/components/reader/__tests__/AiAnswerCard.spec.ts
 
 Expected: FAIL because the component and `AiSource` type do not exist.
 
-- [ ] **Step 3: Implement types and answer component**
+- [x] **Step 3: Implement types and answer component**
 
 Add:
 
@@ -274,7 +274,7 @@ export interface AiResult {id:number;action:AiAction;content:string;mode:string;
 
 `AiAnswerCard.vue` computes `allSources = result.sources?.length ? result.sources : [result.source]`, displays 3 unless expanded, uses `renderDocument('markdown', result.content)`, and emits typed events. Citation text remains escaped interpolation, never `v-html`.
 
-- [ ] **Step 4: Integrate loading/error/result states in ReaderView**
+- [x] **Step 4: Integrate loading/error/result states in ReaderView**
 
 Write a ReaderView test first asserting `role="status"` during a deferred request and `role="alert"` after rejection. Verify RED, then add `aiError`, an accessible loading block, and `AiAnswerCard` integration:
 
@@ -286,7 +286,7 @@ Write a ReaderView test first asserting `role="status"` during a deferred reques
 
 Clear the prior result error on every new request and keep the existing global live status message.
 
-- [ ] **Step 5: Add scoped visual styles and verify GREEN**
+- [x] **Step 5: Add scoped visual styles and verify GREEN**
 
 Use existing variables for `.ai-query-panel`, `.ai-loading`, `.ai-answer-card`, `.citation-list`, `.citation-card`, `.citation-rank`, `.citation-relevance`, and `.ai-inline-error`. Provide visible `:focus-visible`, 44px minimum targets, 150–250ms border/background transitions, no raw component hex colors, and no horizontal overflow at 375px.
 
@@ -298,7 +298,7 @@ pnpm test -- src/components/reader/__tests__/AiAnswerCard.spec.ts src/views/__te
 
 Expected: all focused frontend tests pass.
 
-- [ ] **Step 6: Commit Task 3**
+- [x] **Step 6: Commit Task 3**
 
 ```powershell
 git add frontend/src/api/study.ts frontend/src/components/reader/AiAnswerCard.vue frontend/src/components/reader/__tests__/AiAnswerCard.spec.ts frontend/src/views/ReaderView.vue frontend/src/views/__tests__/ReaderView.spec.ts frontend/src/styles.css
@@ -319,7 +319,7 @@ git commit -m "feat: present expandable answer citations"
 - Consumes: `jumpCitation(source: AiSource)` emitted by `AiAnswerCard`.
 - Produces: PDF page jumps and non-PDF DOM location/highlight with honest fallback status.
 
-- [ ] **Step 1: Write failing navigation tests**
+- [x] **Step 1: Write failing navigation tests**
 
 Add tests that:
 
@@ -347,13 +347,13 @@ it('marks matching text and reports an honest fallback when no excerpt is visibl
 })
 ```
 
-- [ ] **Step 2: Run ReaderView tests and verify RED**
+- [x] **Step 2: Run ReaderView tests and verify RED**
 
 Run `pnpm test -- src/views/__tests__/ReaderView.spec.ts`.
 
 Expected: FAIL because citation navigation/highlighting is not implemented.
 
-- [ ] **Step 3: Implement PDF and non-PDF navigation**
+- [x] **Step 3: Implement PDF and non-PDF navigation**
 
 Add `clearSourceHighlight`, `citationNeedles`, `markVisibleCitation`, and `jumpCitation` in `ReaderView`:
 
@@ -370,11 +370,11 @@ const jumpCitation=async(source:AiSource)=>{
 
 Use `TreeWalker` over `.reader-document` text nodes, skip script/style/mark nodes, wrap only the matching substring in a newly created `<mark data-source-highlight>`, call `scrollIntoView({block:'center',behavior:'auto'})`, and restore the original text node on cleanup/unmount. Candidate needles must include a trimmed 48-code-point prefix and meaningful individual lines/tokens so Markdown syntax does not prevent matching.
 
-- [ ] **Step 4: Apply responsive/highlight polish and update README**
+- [x] **Step 4: Apply responsive/highlight polish and update README**
 
 Add a source highlight style using existing accent/soft variables and a two-second nonessential transition that the global reduced-motion rule disables. Add README bullets describing up to 8 aligned ASK citations, default 3-card display, PDF/non-PDF navigation, and the deliberate no-vector-DB boundary.
 
-- [ ] **Step 5: Run focused tests then all verification**
+- [x] **Step 5: Run focused tests then all verification**
 
 Run in order:
 
@@ -392,7 +392,7 @@ Expected: backend and frontend suites pass with zero failures; production build 
 
 Run a high-confidence changed-file credential scan and `docker compose config --quiet` with only the disposable in-process `SMARTDOC_AUTH_SECRET` placeholder used previously. Do not create `.env` and do not execute any MySQL SQL.
 
-- [ ] **Step 6: UI pre-delivery review**
+- [x] **Step 6: UI pre-delivery review**
 
 Read `C:/Users/34845/.codex/skills/ui-ux-pro-max/references/pro-rules.md` and verify semantic buttons, visible focus, 44px targets, contrast tokens, 375/768/1024/1440 layouts, no hover-only behavior, stable Vue keys, and reduced motion. Fix every Critical/High issue with a failing regression test where behavior changes.
 
