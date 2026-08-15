@@ -138,7 +138,7 @@ git commit -m "feat: select bounded document evidence"
 - Consumes: `AiEvidenceSelector.Selection` from Task 1.
 - Produces: ASK responses where `source == sources[0]`, cached and fresh requests return the same sources, and prompt context contains only selected evidence.
 
-- [ ] **Step 1: Write failing service and HTTP tests**
+- [x] **Step 1: Write failing service and HTTP tests**
 
 Add a service test that verifies the prompt and response share evidence:
 
@@ -168,7 +168,7 @@ Extend the HTTP integration expectation:
 .andExpect(jsonPath("$.sources[0].relevance").value("HIGH"));
 ```
 
-- [ ] **Step 2: Run service/integration tests and verify RED**
+- [x] **Step 2: Run service/integration tests and verify RED**
 
 Run:
 
@@ -179,7 +179,7 @@ mvn -q "-Dtest=AiActionServiceTest,AiActionIntegrationTest" test
 
 Expected: assertions fail because ASK still uses document order/aggregated source and cached responses do not rebuild citations.
 
-- [ ] **Step 3: Integrate the selector minimally**
+- [x] **Step 3: Integrate the selector minimally**
 
 In `execute`:
 
@@ -200,7 +200,7 @@ For ASK, persist the first citation excerpt/page in the existing `sourceText/sou
 
 If the selector yields no source, throw the same safe invalid-document error used for missing text context before calling the model.
 
-- [ ] **Step 4: Run backend focused tests and verify GREEN**
+- [x] **Step 4: Run backend focused tests and verify GREEN**
 
 Run `mvn -q "-Dtest=AiActionServiceTest,AiActionIntegrationTest" test`.
 

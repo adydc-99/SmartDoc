@@ -27,6 +27,26 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 class AiActionServiceTest {
     @Test
+    void askUsesSameRankedEvidenceForPromptFreshResponseAndCacheHit() {
+        Harness h = new Harness("PDF", 3, 24_000, 4_000);
+        when(h.chunks.selectOwnedOrdered(7L, 41L)).thenReturn(List.of(
+                chunk(0, 1, "unrelated introduction"),
+                chunk(1, 2, "Redis TTL expires cached values"),
+                chunk(2, 3, "TTL cleanup can be lazy")));
+        AiActionRequest request = new AiActionRequest(AiAction.ASK, "How does Redis TTL cleanup work?", null, null, false);
+
+        AiActionResponse fresh = h.execute(request);
+        AiActionResponse cached = h.execute(request);
+
+        assertEquals(2, fresh.getSources().size());
+        assertEquals(fresh.getSources().get(0).getText(), fresh.getSource().getText());
+        assertEquals(fresh.getSources().get(0).getChunkIndex(), cached.getSources().get(0).getChunkIndex());
+        assertTrue(h.prompt.get().contains("Redis TTL"));
+        assertFalse(h.prompt.get().contains("unrelated introduction"));
+        verify(h.ai, times(1)).complete(anyString(), anyString());
+    }
+
+    @Test
     void askEvidenceRanksChineseAndEnglishMatchesDeduplicatesAndCapsAtEight() {
         List<DocumentChunkRecord> rows = new ArrayList<>();
         rows.add(chunk(0, 1, "Redis 缓存通过 TTL 控制过期。"));
