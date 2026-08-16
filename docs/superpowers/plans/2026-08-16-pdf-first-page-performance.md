@@ -29,7 +29,7 @@
 - Produces: `extractPdfText(document,pageNumber): Promise<string>`.
 - Keeps: `loadPdf(blob): Promise<LoadedPdf>`.
 
-- [ ] **Step 1: Write failing utility tests**
+- [x] **Step 1: Write failing utility tests**
 
 Create a fake `PDFDocumentProxy` whose page exposes independent controlled `render().promise` and `getTextContent()` promises. Assert:
 
@@ -42,7 +42,7 @@ await expect(pending).resolves.toMatchObject({width:600,height:800})
 
 Then call `extractPdfText(document,1)`, resolve items `[{str:'Hello'},{str:'PDF'}]`, and expect `Hello PDF`.
 
-- [ ] **Step 2: Run utility test and verify RED**
+- [x] **Step 2: Run utility test and verify RED**
 
 Run from `frontend`:
 
@@ -52,11 +52,11 @@ pnpm test -- src/reader/__tests__/pdf.spec.ts
 
 Expected: FAIL because `renderPdfCanvas` and `extractPdfText` are not exported.
 
-- [ ] **Step 3: Implement the split functions**
+- [x] **Step 3: Implement the split functions**
 
 Use `document.getPage(pageNumber)` in both functions. `renderPdfCanvas` obtains the viewport, sizes the canvas, awaits only `page.render(...).promise`, and returns dimensions. `extractPdfText` awaits only `getTextContent()` and joins `str` items with spaces. Remove `renderPdfPage` after all call sites move in Task 2.
 
-- [ ] **Step 4: Verify utility GREEN**
+- [x] **Step 4: Verify utility GREEN**
 
 Run the focused utility test and expect both behaviors to pass.
 
@@ -73,7 +73,7 @@ Run the focused utility test and expect both behaviors to pass.
 - Consumes: `renderPdfCanvas` and `extractPdfText` from Task 1.
 - Emits unchanged events: `pages`, `page`, and `text`.
 
-- [ ] **Step 1: Write failing component scheduling tests**
+- [x] **Step 1: Write failing component scheduling tests**
 
 Mock both new utility functions. Add tests proving:
 
@@ -86,7 +86,7 @@ before the controlled active-page Canvas resolves; after it resolves, expect the
 
 Add a rapid-page test: leave page 1 text unresolved, set prop `page=2`, resolve page 2 text first and page 1 last, then assert the last emitted text remains page 2.
 
-- [ ] **Step 2: Run component tests and verify RED**
+- [x] **Step 2: Run component tests and verify RED**
 
 Run:
 
@@ -96,7 +96,7 @@ pnpm test -- src/components/reader/__tests__/ReaderPdf.spec.ts
 
 Expected: FAIL because current mounting renders thumbnails before the active page and blocks the active page on text extraction.
 
-- [ ] **Step 3: Implement active-page-first scheduling**
+- [x] **Step 3: Implement active-page-first scheduling**
 
 In `ReaderPdf.vue`:
 
@@ -109,11 +109,11 @@ In `ReaderPdf.vue`:
 - catch current active-page errors into a safe `renderError` message;
 - on unmount set `disposed=true`, increment the request id, destroy the PDF, and revoke the URL.
 
-- [ ] **Step 4: Verify component GREEN**
+- [x] **Step 4: Verify component GREEN**
 
 Run ReaderPdf utility/component tests and expect all scheduling, stale guard, and cleanup tests to pass.
 
-- [ ] **Step 5: Run full frontend verification**
+- [x] **Step 5: Run full frontend verification**
 
 Run:
 
@@ -124,7 +124,7 @@ pnpm build
 
 Expected: all tests pass and Vite production build exits 0.
 
-- [ ] **Step 6: Review and commit**
+- [x] **Step 6: Review and commit**
 
 Run `git diff --check`, inspect the final diff for unbounded concurrency and cleanup regressions, then:
 
