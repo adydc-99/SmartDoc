@@ -9,6 +9,8 @@ import com.smartdoc.library.mapper.DocumentTagMapper;
 import com.smartdoc.library.mapper.FolderMapper;
 import com.smartdoc.library.mapper.TagMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -116,6 +118,16 @@ class LibraryServiceTest {
         assertThrows(InvalidDocumentException.class,
                 () -> service.listDocuments(1L, null, null, null, null, "updated_at desc; drop table tag", null));
         verifyNoInteractions(documents);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings={"updated-desc","updated_desc","updated:desc","updated,desc"})
+    void acceptsDocumentedSortSeparators(String sort) {
+        when(documents.selectList(any())).thenReturn(Collections.emptyList());
+
+        assertEquals(Collections.emptyList(), service.listDocuments(1L, null, null, null, null, sort, null));
+
+        verify(documents).selectList(any());
     }
 
     @Test
