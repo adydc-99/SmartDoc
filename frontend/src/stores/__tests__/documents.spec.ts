@@ -1,7 +1,17 @@
-import { describe, expect, it, vi } from 'vitest'
-import { runUploadQueue, filtersFromQuery, filtersToQuery } from '../documents'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { runUploadQueue, filtersFromQuery, filtersToQuery, useDocumentsStore } from '../documents'
+
+const libraryApi=vi.hoisted(()=>({
+  listFolders:vi.fn(),listTags:vi.fn(),listLibraryDocuments:vi.fn(),uploadDocument:vi.fn(),
+  organizeDocument:vi.fn(),getDeleteImpact:vi.fn(),removeDocument:vi.fn(),
+}))
+vi.mock('../../api/library',()=>libraryApi)
+
+const backendError=(message:string)=>({isAxiosError:true,message:'Request failed with status code 400',response:{data:{message}}})
 
 describe('document workspace state', () => {
+  beforeEach(()=>{setActivePinia(createPinia());vi.clearAllMocks()})
   it('mirrors supported filters to and from URL query values', () => {
     const filters = filtersFromQuery({ query: 'JVM', type: 'PDF', favorite: 'true', sort: 'name-asc', tagId: '7' })
     expect(filters).toMatchObject({ query: 'JVM', type: 'PDF', favorite: true, sort: 'name-asc', tagId: 7 })
@@ -30,5 +40,24 @@ describe('document workspace state', () => {
     release.splice(0).forEach((done) => done())
     await pending
     expect(peak).toBe(2)
+  })
+
+  it('shows the safe backend message when the document list fails',async()=>{
+    libraryApi.listLibraryDocuments.mockRejectedValue(backendError('Unsupported library sort'))
+    const store=useDocumentsStore()
+
+    await store.loadDocuments()
+
+    expect(store.error).toBe('Unsupported library sort')
+  })
+
+  it('shows the safe backend message when an upload fails',async()=>{
+    libraryApi.uploadDocument.mockRejectedValue(backendError('PDF 不能超过 20 MB'))
+    libraryApi.listLibraryDocuments.mockResolvedValue([])
+    const store=useDocumentsStore()
+
+    await store.uploadFiles([new File(['pdf'],'large.pdf',{type:'application/pdf'})])
+
+    expect(store.uploads[0]).toMatchObject({state:'failure',error:'PDF 不能超过 20 MB'})
   })
 })

@@ -27,7 +27,7 @@
 - Consumes: `LibraryService.listDocuments(..., String sort, ...)`.
 - Produces: parsing support for `updated-desc`, `updated_desc`, `updated:desc`, and `updated,desc` without changing rejection of unknown fields/directions.
 
-- [ ] **Step 1: Write the failing compatibility test**
+- [x] **Step 1: Write the failing compatibility test**
 
 Add a parameterized test that calls the real service parser through `listDocuments`:
 
@@ -41,7 +41,7 @@ void acceptsDocumentedSortSeparators(String sort) {
 }
 ```
 
-- [ ] **Step 2: Run the backend test and verify RED**
+- [x] **Step 2: Run the backend test and verify RED**
 
 Run from `backend`:
 
@@ -51,7 +51,7 @@ mvn -q -Dtest=LibraryServiceTest test
 
 Expected: `updated-desc` fails with `InvalidDocumentException: Unsupported library sort`.
 
-- [ ] **Step 3: Implement the minimal parser compatibility**
+- [x] **Step 3: Implement the minimal parser compatibility**
 
 In `parseSort`, normalize all documented separators to comma before splitting:
 
@@ -62,11 +62,11 @@ String normalized=value==null||value.trim().isEmpty()?"updated,desc":value.trim(
 
 Do not change the existing field and direction allowlists.
 
-- [ ] **Step 4: Verify backend GREEN**
+- [x] **Step 4: Verify backend GREEN**
 
 Run `mvn -q -Dtest=LibraryServiceTest test` and expect all tests to pass.
 
-- [ ] **Step 5: Commit backend compatibility**
+- [x] **Step 5: Commit backend compatibility**
 
 ```powershell
 git add backend/src/main/java/com/smartdoc/library/LibraryService.java backend/src/test/java/com/smartdoc/library/LibraryServiceTest.java
@@ -87,7 +87,7 @@ git commit -m "fix: accept library sort separators"
 - Consumes: `LibraryFilters.sort` values such as `updated-desc`.
 - Produces: `normalizeLibrarySort(sort?: string): string|undefined`; safe list/upload error strings through `messageOf(error)`.
 
-- [ ] **Step 1: Write the failing API-boundary test**
+- [x] **Step 1: Write the failing API-boundary test**
 
 Mock `api.get`, call `listLibraryDocuments`, and assert the original object is unchanged while the request is normalized:
 
@@ -101,7 +101,7 @@ it('normalizes UI sort values only at the API boundary',async()=>{
 })
 ```
 
-- [ ] **Step 2: Run the API test and verify RED**
+- [x] **Step 2: Run the API test and verify RED**
 
 Run from `frontend`:
 
@@ -111,7 +111,7 @@ pnpm test -- src/api/__tests__/libraryContract.spec.ts
 
 Expected: FAIL because the request still contains `updated-desc`.
 
-- [ ] **Step 3: Add minimal API-boundary normalization**
+- [x] **Step 3: Add minimal API-boundary normalization**
 
 In `library.ts`:
 
@@ -122,17 +122,17 @@ export async function listLibraryDocuments(filters:LibraryFilters){
 }
 ```
 
-- [ ] **Step 4: Write failing safe-error tests**
+- [x] **Step 4: Write failing safe-error tests**
 
 Extend the store tests by mocking the library API rejection with an Axios-shaped 400 response and assert that list and upload item errors equal `Unsupported library sort`, not the generic status string.
 
-- [ ] **Step 5: Run store tests and verify RED**
+- [x] **Step 5: Run store tests and verify RED**
 
 Run `pnpm test -- src/stores/__tests__/documents.spec.ts`.
 
 Expected: FAIL because store catches currently read `error.message`.
 
-- [ ] **Step 6: Reuse the shared safe error extractor**
+- [x] **Step 6: Reuse the shared safe error extractor**
 
 Import `messageOf` from `../api` and replace both store catch branches:
 
@@ -142,11 +142,11 @@ catch(error){this.error=messageOf(error)}
 catch(error){item.state='failure';item.error=messageOf(error)}
 ```
 
-- [ ] **Step 7: Verify frontend GREEN**
+- [x] **Step 7: Verify frontend GREEN**
 
 Run the API and store focused tests and expect all to pass.
 
-- [ ] **Step 8: Run full verification**
+- [x] **Step 8: Run full verification**
 
 Run:
 
@@ -159,7 +159,7 @@ cd ..; git diff --check
 
 Expected: zero failures, successful production build, and no whitespace errors.
 
-- [ ] **Step 9: Commit, push, and update Draft PR #1**
+- [x] **Step 9: Commit, push, and update Draft PR #1**
 
 ```powershell
 git add frontend/src/api/library.ts frontend/src/api/__tests__/libraryContract.spec.ts frontend/src/stores/documents.ts frontend/src/stores/__tests__/documents.spec.ts docs/superpowers/plans/2026-08-16-library-sort-upload-refresh.md

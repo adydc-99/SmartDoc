@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
+import { messageOf } from '../api'
 import * as libraryApi from '../api/library'
 import type { DeleteImpact, LibraryDocument, LibraryFilters } from '../api/library'
 
@@ -58,7 +59,7 @@ export const useDocumentsStore = defineStore('documents', {
     async loadDocuments() {
       this.loading = true; this.error = ''
       try { this.documents = await libraryApi.listLibraryDocuments(this.filters) }
-      catch (error) { this.error = error instanceof Error ? error.message : '资料加载失败' }
+      catch (error) { this.error = messageOf(error) }
       finally { this.loading = false }
     },
     async uploadFiles(files: File[]) {
@@ -73,7 +74,7 @@ export const useDocumentsStore = defineStore('documents', {
         try {
           await libraryApi.uploadDocument(file, this.filters.folderId, (progress) => { item.progress = progress })
           item.state = 'parsing'; item.progress = 100
-        } catch (error) { item.state = 'failure'; item.error = error instanceof Error ? error.message : '上传失败' }
+        } catch (error) { item.state = 'failure'; item.error = messageOf(error) }
       })
       await this.loadDocuments()
       for (const item of items) {
