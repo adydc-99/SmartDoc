@@ -4,7 +4,7 @@ SmartDoc 用于阅读、整理和理解学习资料：上传 PDF、Markdown、TX
 
 ## 最快启动（H2，无 Docker、无 API Key）
 
-前置条件：Java 11、Maven 3.6+、Node.js 18+ 和 pnpm。
+前置条件：Java 11、Maven 3.6+、Node.js 22.22.2+（或兼容的 24.15+）和 pnpm 10。
 
 ```powershell
 cd backend
@@ -40,7 +40,7 @@ docker compose up --build
 
 新 MySQL 数据库会由 Compose 挂载的 [`scripts/init_mysql.sql`](scripts/init_mysql.sql) 初始化。已有数据库不会自动迁移，也不要让应用自动执行增量脚本。
 
-⚠️ MySQL 增量脚本已生成到 `scripts/alter_ai_provider_config.sql`；仅旧数据库需要手动执行，新数据库使用 `scripts/init_mysql.sql`。
+⚠️ MySQL 增量脚本已生成到 `scripts/alter_ai_provider_config.sql` 和 `scripts/alter_ai_vision_cache_observation.sql`；仅旧数据库需要按实际版本手动执行，新数据库使用 `scripts/init_mysql.sql`。应用不会自动执行这些脚本。
 
 ## 国内服务商与自定义兼容服务
 
@@ -56,8 +56,8 @@ SmartDoc supports services implementing the OpenAI Chat Completions request/resp
 
 - 文档库：PDF、Markdown、TXT 和常见代码文件上传、异步解析、全文检索、目录/标签、收藏与最近阅读。
 - 阅读器：PDF 页码、文本/代码渲染、阅读进度、文档内搜索、笔记和 Markdown 导出。
-- 文本 AI：文档/当前页总结、基于文档证据的问答、选区解释、代码解释、逐行说明、复杂度分析、问题排查、示例和面试题；结果可缓存，必要时可强制重新生成。
-- 视觉 AI：对当前 PDF 页或粘贴/选择的 PNG、JPEG 图片进行识别；视觉深度分析会将结构化视觉观察交给独立的文本模型。
+- 文本 AI：文档/当前页总结、基于文档证据的问答、选区解释、代码解释、逐行说明、复杂度分析、问题排查、示例和面试题；问答最多返回 8 条去重来源（默认展示 3 条），点击可跳转 PDF 页或定位并高亮文本，结果可缓存并强制重新生成。
+- 视觉 AI：对当前 PDF 页或粘贴/选择的 PNG、JPEG、WebP 图片进行识别；视觉深度分析会将结构化视觉观察与有界文档上下文交给独立的文本模型。
 - 多服务商：每位用户可单独新增、测试、启用和删除服务商，并为文本与视觉任务配置不同的默认路由、每日调用上限和最大输出 token。
 
 ## 架构与数据流
@@ -102,6 +102,8 @@ pnpm build
 ```
 
 GitHub Actions 在 push 和 pull request 上分别运行后端 Maven 测试、前端 Vitest 与生产构建；独立的密钥扫描工作流会拒绝常见明文 API Key、Bearer Token 和主密钥赋值。
+
+WebP 解码使用 BSD 许可的 [TwelveMonkeys ImageIO](https://github.com/haraldk/TwelveMonkeys)，上传图片在发送给兼容视觉接口前统一归一化为 PNG。
 
 ## 项目边界
 

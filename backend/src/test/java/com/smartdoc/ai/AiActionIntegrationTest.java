@@ -29,7 +29,7 @@ class AiActionIntegrationTest {
   when(ai.mode()).thenReturn(AiMode.DEMO);when(ai.model()).thenReturn("demo");when(ai.complete(anyString(),anyString())).thenReturn("# 回答");String auth="Bearer "+tokens.issue(7L,"owner");
   String request="{\"action\":\"ASK\",\"question\":\"缓存是什么？\",\"force\":false}";
   mvc.perform(post("/api/documents/{id}/ai/actions",id).header("Authorization",auth).contentType("application/json").content(request))
-    .andExpect(status().isOk()).andExpect(jsonPath("$.action").value("ASK")).andExpect(jsonPath("$.cached").value(false)).andExpect(jsonPath("$.source.documentId").value(id)).andExpect(jsonPath("$.content").value("# 回答"));
+    .andExpect(status().isOk()).andExpect(jsonPath("$.action").value("ASK")).andExpect(jsonPath("$.cached").value(false)).andExpect(jsonPath("$.source.documentId").value(id)).andExpect(jsonPath("$.source.chunkIndex").value(0)).andExpect(jsonPath("$.sources.length()").value(1)).andExpect(jsonPath("$.sources[0].relevance").value("HIGH")).andExpect(jsonPath("$.content").value("# 回答"));
   mvc.perform(post("/api/documents/{id}/ai/actions",id).header("Authorization",auth).contentType("application/json").content(request))
     .andExpect(status().isOk()).andExpect(jsonPath("$.cached").value(true));
   verify(ai,times(1)).complete(anyLong(),anyString(),anyString());assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM ai_result WHERE document_id=?",Integer.class,id));

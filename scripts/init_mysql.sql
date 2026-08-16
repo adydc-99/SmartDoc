@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS ai_routing_config (
 CREATE TABLE IF NOT EXISTS ai_vision_cache (
   id BIGINT PRIMARY KEY AUTO_INCREMENT, user_id BIGINT NOT NULL, document_id BIGINT NOT NULL,
   content_sha256 CHAR(64) NOT NULL, provider_id BIGINT NOT NULL, model VARCHAR(120) NOT NULL,
-  prompt_version VARCHAR(40) NOT NULL, observation TEXT NOT NULL, created_at DATETIME NOT NULL, expires_at DATETIME NOT NULL,
+  prompt_version VARCHAR(40) NOT NULL, observation MEDIUMTEXT NOT NULL, created_at DATETIME NOT NULL, expires_at DATETIME NOT NULL,
   UNIQUE KEY uk_ai_vision_cache(user_id,content_sha256,provider_id,model,prompt_version),
   INDEX idx_ai_vision_cache_owner_expiry(user_id,expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

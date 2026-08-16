@@ -4,17 +4,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartdoc.ai.DailyAiQuota;
 import com.smartdoc.ai.provider.*;
 import com.smartdoc.document.*;
+import com.smartdoc.document.mapper.DocumentChunkMapper;
 import com.smartdoc.document.mapper.DocumentMapper;
 import com.smartdoc.storage.FileStorage;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.mock.web.MockMultipartFile;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.time.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -22,6 +26,16 @@ import static org.mockito.Mockito.*;
 
 class VisionActionServiceTest {
     private static final String OBSERVATION = "{\"description\":\"architecture diagram\",\"ocrText\":\"cache\",\"codeOrDiagram\":\"A -> B\",\"uncertainties\":[\"small label\"]}";
+
+    @Test void validatesReaderHeaderDimensionsBeforeAnyPixelDecode() throws Exception {
+        ImageReader reader=mock(ImageReader.class);
+        when(reader.getWidth(0)).thenReturn(5_000);
+        when(reader.getHeight(0)).thenReturn(4_000);
+
+        assertThrows(InvalidDocumentException.class,()->VisionActionService.validateImageDimensions(reader));
+
+        verify(reader,never()).read(anyInt());
+    }
 
     @Test void ownerIsolationAndInvalidPdfPagesFailBeforeStorageRoutingQuotaOrProvider() throws Exception {
         Harness h = new Harness();
@@ -126,7 +140,7 @@ class VisionActionServiceTest {
         Harness invalid = new Harness(); invalid.document.setDocumentType("TXT");
         when(invalid.visionAdapter.vision(any(), anyString(), any())).thenReturn(new ProviderResponse("```json\n{}\n``` trailing"));
         ProviderHttpException failure=assertThrows(ProviderHttpException.class, () -> invalid.execute(7L, direct(null), png()));
-        assertEquals("INVALID_PROVIDER_RESPONSE", failure.getCode());
+        assertEquals("INVALID_VISION_RESPONSE", failure.getCode());
         verify(invalid.cache, never()).insert(any());
     }
 
@@ -138,14 +152,76 @@ class VisionActionServiceTest {
         VisionActionResponse response=h.execute(7L,direct(null),png());
         assertEquals("architecture diagram",response.getObservation().getDescription());
         verify(h.cache,times(2)).selectOwned(eq(7L),anyString(),eq(11L),eq("vision-model"),eq("vision-v1"),any());
+        verify(h.cache).deleteExpiredOwnedKey(eq(7L),anyString(),eq(11L),eq("vision-model"),eq("vision-v1"),any());
+    }
+
+    @Test void cacheMissDeletesExpiredOwnedKeyBeforeInsert() throws Exception {
+        Harness h=new Harness();h.document.setDocumentType("TXT");
+        h.execute(7L,direct(null),png());
+        InOrder order=inOrder(h.cache);
+        order.verify(h.cache).selectOwned(eq(7L),anyString(),eq(11L),eq("vision-model"),eq("vision-v1"),any());
+        order.verify(h.cache).deleteExpiredOwnedKey(eq(7L),anyString(),eq(11L),eq("vision-model"),eq("vision-v1"),any());
+        order.verify(h.cache).insert(any());
+    }
+
+    @Test void deepAnalysisUsesOwnerScopedCurrentPageFirstBoundedChunkContext() throws Exception {
+        Harness h=new Harness();h.document.setContentText("UNBOUNDED_DOCUMENT_TEXT_MUST_NOT_BE_USED");
+        when(h.storage.open("owned/source.pdf")).thenReturn(new ByteArrayInputStream(new byte[]{1}));
+        when(h.renderer.render(any(InputStream.class),eq(2))).thenReturn(new NormalizedImage(new byte[]{1,2,3},"image/png"));
+        DocumentChunkRecord current=chunk(2,"CURRENT_PAGE_CONTEXT");
+        DocumentChunkRecord other=chunk(1,"图".repeat(24_100)+"TAIL_MUST_BE_TRUNCATED");
+        when(h.chunks.selectOwnedForVisionContext(7L,41L,2,64)).thenReturn(Arrays.asList(current,other));
+        h.execute(7L,new VisionActionRequest(VisionAction.DEEP_ANALYSIS,"分析",2),null);
+        String prompt=h.textRequest.get().getPrompt();
+        assertFalse(prompt.contains("UNBOUNDED_DOCUMENT_TEXT_MUST_NOT_BE_USED"));
+        assertTrue(prompt.indexOf("CURRENT_PAGE_CONTEXT")<prompt.indexOf("图"));
+        assertFalse(prompt.contains("TAIL_MUST_BE_TRUNCATED"));
+        String context=prompt.substring(prompt.indexOf("Document text context:\n")+"Document text context:\n".length());
+        assertTrue(context.codePointCount(0,context.length())<=24_000);
+        verify(h.chunks).selectOwnedForVisionContext(7L,41L,2,64);
+    }
+
+    @Test void pdfDeepAnalysisRequiresOwnedChunkTextContext() throws Exception {
+        Harness h=new Harness();
+        when(h.storage.open("owned/source.pdf")).thenReturn(new ByteArrayInputStream(new byte[]{1}));
+        when(h.renderer.render(any(InputStream.class),eq(1))).thenReturn(new NormalizedImage(new byte[]{1,2,3},"image/png"));
+        when(h.chunks.selectOwnedForVisionContext(7L,41L,1,64)).thenReturn(Collections.emptyList());
+        assertThrows(InvalidDocumentException.class,()->h.execute(7L,new VisionActionRequest(VisionAction.DEEP_ANALYSIS,"分析",1),null));
+        verify(h.textAdapter,never()).complete(any(),anyString(),any());
+    }
+
+    @Test void acceptsRiffWebpByMagicAndNormalizesItToPng() throws Exception {
+        Harness h=new Harness();h.document.setDocumentType("TXT");
+        byte[] webp=Arrays.copyOf(Base64.getDecoder().decode("UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAA=="),42);
+        MockMultipartFile file=new MockMultipartFile("screenshot","pixel.webp","application/octet-stream",webp);
+        h.execute(7L,direct(null),file);
+        verify(h.visionAdapter).vision(any(),anyString(),argThat(request ->
+                "image/png".equals(request.getMediaType()) && request.getImageBytes().length>8 &&
+                        (request.getImageBytes()[0]&255)==0x89 && request.getImageBytes()[1]==0x50));
+    }
+
+    @Test void rejectsOversizedWebpFromHeaderBeforeDecodingItsMissingPayload() throws Exception {
+        Harness h=new Harness();h.document.setDocumentType("TXT");
+        byte[] webp={
+                'R','I','F','F',22,0,0,0,'W','E','B','P','V','P','8','X',10,0,0,0,
+                0,0,0,0,(byte)0x87,0x13,0,(byte)0x9f,0x0f,0
+        };
+        MockMultipartFile file=new MockMultipartFile("screenshot","oversized.webp","image/webp",webp);
+
+        InvalidDocumentException error=assertThrows(InvalidDocumentException.class,()->h.execute(7L,direct(null),file));
+
+        assertTrue(error.getMessage().contains("像素数"));
+        verify(h.router,never()).require(anyLong(),any());
     }
 
     private static VisionActionRequest direct(Integer page){return new VisionActionRequest(VisionAction.DIRECT, null, page);}
     private static MockMultipartFile png() throws IOException {BufferedImage image=new BufferedImage(2,2,BufferedImage.TYPE_INT_RGB);ByteArrayOutputStream out=new ByteArrayOutputStream();ImageIO.write(image,"png",out);return new MockMultipartFile("screenshot","shot.png","text/plain",out.toByteArray());}
     private static VisionCacheRecord cacheRow(String observation){VisionCacheRecord row=new VisionCacheRecord();row.setId(1L);row.setObservation(observation);row.setExpiresAt(LocalDateTime.now().plusHours(1));return row;}
+    private static DocumentChunkRecord chunk(int page,String content){DocumentChunkRecord row=new DocumentChunkRecord();row.setPageNumber(page);row.setContent(content);return row;}
 
     private static final class Harness {
         final DocumentMapper documents=mock(DocumentMapper.class); final FileStorage storage=mock(FileStorage.class);
+        final DocumentChunkMapper chunks=mock(DocumentChunkMapper.class);
         final VisionCacheMapper cache=mock(VisionCacheMapper.class); final ModelRouter router=mock(ModelRouter.class);
         final ProviderAdapter visionAdapter=mock(ProviderAdapter.class),textAdapter=mock(ProviderAdapter.class);
         final PdfPageImageRenderer renderer=mock(PdfPageImageRenderer.class); final DailyAiQuota quota=new DailyAiQuota(Clock.systemUTC());
@@ -160,7 +236,7 @@ class VisionActionServiceTest {
             when(visionAdapter.vision(any(),anyString(),any())).thenReturn(new ProviderResponse(OBSERVATION));
             when(textAdapter.complete(any(),anyString(),any())).thenAnswer(call->{textRequest.set(call.getArgument(2));return new ProviderResponse("deep synthesis");});
             when(cache.insert(any())).thenAnswer(call->{((VisionCacheRecord)call.getArgument(0)).setId(9L);return 1;});
-            service=new VisionActionService(documents,storage,cache,router,quota,new ObjectMapper(),renderer,Clock.systemUTC());
+            service=new VisionActionService(documents,chunks,storage,cache,router,quota,new ObjectMapper(),renderer,Clock.systemUTC());
         }
         VisionActionResponse execute(long user,VisionActionRequest request,MockMultipartFile file)throws Exception{return service.execute(user,41L,request,file);}
         private static DocumentRecord readyDocument(){DocumentRecord d=new DocumentRecord();d.setId(41L);d.setUserId(7L);d.setStatus("READY");d.setDocumentType("PDF");d.setPageCount(2);d.setStorageKey("owned/source.pdf");d.setContentText("document");return d;}

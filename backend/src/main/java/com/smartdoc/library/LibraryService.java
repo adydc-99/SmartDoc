@@ -90,7 +90,7 @@ public class LibraryService {
         List<DocumentListItem> result=new ArrayList<>();for(DocumentRecord document:records)result.add(new DocumentListItem(document,tagsByDocument.getOrDefault(document.getId(),Collections.emptyList())));return result;
     }
     private SortOrder parseSort(String value){
-        String normalized=value==null||value.trim().isEmpty()?"updated,desc":value.trim().toLowerCase(Locale.ROOT).replace(":",",").replace("_",",");
+        String normalized=value==null||value.trim().isEmpty()?"updated,desc":value.trim().toLowerCase(Locale.ROOT).replace(":",",").replace("_",",").replace("-",",");
         String[] parts=normalized.split(",");if(parts.length!=2 || !(parts[1].equals("asc")||parts[1].equals("desc")))throw new InvalidDocumentException("Unsupported library sort");
         String field=parts[0]; if(field.equals("updatedat"))field="updated"; if(field.equals("createdat"))field="created";
         if(!(field.equals("updated")||field.equals("name")||field.equals("created")))throw new InvalidDocumentException("Unsupported library sort");return new SortOrder(field,parts[1].equals("asc"));

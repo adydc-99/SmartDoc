@@ -14,7 +14,8 @@ export interface DeleteImpact { notes: number; excerpts: number; questions: numb
 
 export async function listFolders() { return (await api.get<FolderNode[]>('/folders')).data }
 export async function listTags() { return (await api.get<Tag[]>('/tags')).data }
-export async function listLibraryDocuments(filters: LibraryFilters) { return (await api.get<LibraryDocument[]>('/library/documents', { params: filters })).data }
+export const normalizeLibrarySort=(sort?:string)=>sort?.replace(/-([^-]+)$/g,',$1')
+export async function listLibraryDocuments(filters: LibraryFilters) { return (await api.get<LibraryDocument[]>('/library/documents', { params: {...filters,sort:normalizeLibrarySort(filters.sort)} })).data }
 export async function organizeDocument(id: number, update: OrganizationUpdate) { return (await api.patch<LibraryDocument>(`/documents/${id}/organization`, update)).data }
 export async function getDeleteImpact(id: number) { return (await api.get<DeleteImpact>(`/documents/${id}/delete-impact`)).data }
 export async function removeDocument(id: number) { await api.delete(`/documents/${id}`) }

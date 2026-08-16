@@ -15,6 +15,24 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import org.springframework.http.HttpStatus;
 
 class OpenAiChatCompletionsAdapterTest {
+    @Test void visionOnlyProbeSendsATinyMultimodalRequest() {
+        RestTemplate client = new RestTemplate(new SimpleClientHttpRequestFactory());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(client).build();
+        OpenAiChatCompletionsAdapter adapter = new OpenAiChatCompletionsAdapter(client, new ObjectMapper(), 2 * 1024 * 1024);
+        AiProviderConfig config = AiProviderConfig.textProvider(1L, "Vision only", "CUSTOM", "https://example.cn/v1", "vision-model");
+        config.setSupportsText(false);
+        config.setSupportsVision(true);
+        server.expect(once(), requestTo("https://example.cn/v1/chat/completions"))
+                .andExpect(jsonPath("$.max_tokens").value(1))
+                .andExpect(jsonPath("$.messages[0].content[0].type").value("text"))
+                .andExpect(jsonPath("$.messages[0].content[1].type").value("image_url"))
+                .andExpect(jsonPath("$.messages[0].content[1].image_url.url").value(org.hamcrest.Matchers.startsWith("data:image/png;base64,")))
+                .andRespond(withSuccess("{\"choices\":[{\"message\":{\"content\":\"OK\"}}]}", MediaType.APPLICATION_JSON));
+
+        assertEquals("OK", adapter.probe(config, "vision-key").getContent());
+        server.verify();
+    }
+
     @Test void postsExactOpenAiMultimodalMessageShape() {
         RestTemplate client = new RestTemplate(new SimpleClientHttpRequestFactory());
         MockRestServiceServer server = MockRestServiceServer.bindTo(client).build();
