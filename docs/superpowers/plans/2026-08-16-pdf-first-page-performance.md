@@ -133,6 +133,6 @@ git add frontend/src/reader/pdf.ts frontend/src/reader/__tests__/pdf.spec.ts fro
 git commit -m "perf: prioritize active PDF page rendering"
 ```
 
-- [ ] **Step 7: Push and update Draft PR #1**
+- [x] **Step 7: Push and update Draft PR #1**
 
 Push `codex/showcase-a`, update PR verification counts, and wait for Backend, Frontend, and Secret Scan checks to complete successfully.
